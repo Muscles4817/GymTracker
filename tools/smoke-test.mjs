@@ -2,7 +2,7 @@
 // session (start → add exercise → log sets → finish → history → charts) and
 // fails on any console error, page exception or missing element.
 //
-//   node tools/smoke-test.mjs [--headed] [--shots <dir>] [--url <base>]
+//   node tools/smoke-test.mjs [--headed] [--shots <dir>] [--url <base>] [--dark]
 //
 // --url points the run at an already-served copy (a subdirectory host, or the
 // live site) instead of starting the bundled server.
@@ -21,6 +21,7 @@ const urlIdx = process.argv.indexOf('--url');
 const EXTERNAL = urlIdx > -1 ? process.argv[urlIdx + 1].replace(/\/?$/, '/') : null;
 const BASE = EXTERNAL || `http://127.0.0.1:${PORT}/`;
 const HEADED = process.argv.includes('--headed');
+const DARK = process.argv.includes('--dark'); // capture every screenshot in dark mode
 const shotsIdx = process.argv.indexOf('--shots');
 const SHOTS = shotsIdx > -1 ? process.argv[shotsIdx + 1] : null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -206,6 +207,18 @@ async function main() {
   await waitFor('#content .view', 10000, 'app shell');
   ok('App boots', await evaluate('document.querySelectorAll(".tab").length + " tabs"'));
   await shot('start');
+
+  if (DARK) {
+    await evaluate(`
+      (async () => {
+        const s = await import(new URL('src/store.js', location.href));
+        const t = await import(new URL('src/theme.js', location.href));
+        await s.saveSettings({ theme: 'dark' });
+        t.applyTheme('dark');
+      })()`, 'force dark');
+    await sleep(250);
+    ok('Dark mode forced for this run');
+  }
 
   const exCount = await evaluate('window.__t = null, document.querySelectorAll(".tab").length');
   if (exCount !== 5) fail('Tab bar', `expected 5 tabs, got ${exCount}`);
