@@ -1,0 +1,6 @@
+# Keep everything LF in the repo and the working tree. These files are served
+# verbatim by a static host, and the tooling is all Node.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary

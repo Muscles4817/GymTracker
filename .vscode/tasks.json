@@ -1,0 +1,64 @@
+{
+  // Terminal → Run Task…  (or Ctrl+Shift+P → "Tasks: Run Task")
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "GymTracker: dev server",
+      "type": "shell",
+      "command": "node tools/serve.mjs 5173",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": [{ "regexp": "^$", "file": 1, "location": 2, "message": 3 }],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*node tools/serve\\.mjs.*$",
+          "endsPattern": "http://localhost:\\d+"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "detail": "Serves the app at http://localhost:5173. Stop it with the bin icon in the terminal panel."
+    },
+    {
+      "label": "GymTracker: dev server on the local network",
+      "type": "shell",
+      "command": "node tools/serve.mjs 5173 --host",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "detail": "Also binds your LAN address so you can open the app on your phone."
+    },
+    {
+      "label": "GymTracker: smoke test",
+      "type": "shell",
+      "command": "node tools/smoke-test.mjs",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "detail": "Drives the whole app in headless Chrome. Fails on any console error."
+    },
+    {
+      "label": "GymTracker: smoke test with screenshots",
+      "type": "shell",
+      "command": "node tools/smoke-test.mjs --shots ./screenshots",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "detail": "Same run, but saves a PNG of each screen into ./screenshots."
+    },
+    {
+      "label": "GymTracker: check exercise library",
+      "type": "shell",
+      "command": "node tools/check-library.mjs",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "detail": "Validates the exercise data: duplicate ids, unknown muscles or equipment."
+    },
+    {
+      "label": "GymTracker: regenerate app icons",
+      "type": "shell",
+      "command": "node tools/make-icons.mjs",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "detail": "Rewrites assets/icon*.png and icon.svg."
+    }
+  ]
+}

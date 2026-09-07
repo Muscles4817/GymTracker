@@ -1,0 +1,115 @@
+{
+  // Press F5 to run GymTracker.
+  //
+  // Each "Run" config launches tools/serve.mjs as the debugged process, waits
+  // for it to print its URL, then starts a browser session attached to it.
+  // Stopping the debug session shuts both down, so no node process is left
+  // holding port 5173.
+  //
+  // The browser configs below are helpers — they're hidden from the dropdown
+  // and started by serverReadyAction rather than picked directly.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run GymTracker (Chrome)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/serve.mjs",
+      "args": ["5173"],
+      "cwd": "${workspaceFolder}",
+      "skipFiles": ["<node_internals>/**"],
+      "serverReadyAction": {
+        "pattern": "http://localhost:([0-9]+)",
+        "action": "startDebugging",
+        "name": "GymTracker browser (Chrome)",
+        "killOnServerStop": true
+      },
+      "presentation": { "group": "1-run", "order": 1 }
+    },
+    {
+      "name": "Run GymTracker (Edge)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/serve.mjs",
+      "args": ["5173"],
+      "cwd": "${workspaceFolder}",
+      "skipFiles": ["<node_internals>/**"],
+      "serverReadyAction": {
+        "pattern": "http://localhost:([0-9]+)",
+        "action": "startDebugging",
+        "name": "GymTracker browser (Edge)",
+        "killOnServerStop": true
+      },
+      "presentation": { "group": "1-run", "order": 2 }
+    },
+    {
+      "name": "Run GymTracker (default browser, no debugger)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/serve.mjs",
+      "args": ["5173"],
+      "cwd": "${workspaceFolder}",
+      "skipFiles": ["<node_internals>/**"],
+      "serverReadyAction": {
+        "pattern": "http://localhost:([0-9]+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally"
+      },
+      "presentation": { "group": "1-run", "order": 3 }
+    },
+    {
+      "name": "Serve on the local network (open it on your phone)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/serve.mjs",
+      "args": ["5173", "--host"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": { "group": "1-run", "order": 4 }
+    },
+
+    {
+      "name": "Smoke test",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/smoke-test.mjs",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": { "group": "2-test", "order": 1 }
+    },
+    {
+      "name": "Smoke test (watch it run in a visible browser)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/smoke-test.mjs",
+      "args": ["--headed"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": { "group": "2-test", "order": 2 }
+    },
+
+    {
+      "name": "GymTracker browser (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}",
+      // A persistent profile, so IndexedDB survives between runs — with the
+      // default throwaway profile every session would start with an empty log.
+      "userDataDir": "${workspaceFolder}/.vscode/.browser-profile-chrome",
+      "presentation": { "hidden": true }
+    },
+    {
+      "name": "GymTracker browser (Edge)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}",
+      "userDataDir": "${workspaceFolder}/.vscode/.browser-profile-edge",
+      "presentation": { "hidden": true }
+    }
+  ]
+}

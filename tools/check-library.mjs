@@ -1,0 +1,11 @@
+import { EXERCISE_LIBRARY as L, MUSCLES, EQUIPMENT } from '../src/exercises.js';
+const ids = L.map(e => e.id);
+const dup = [...new Set(ids.filter((v, i) => ids.indexOf(v) !== i))];
+const badM = [...new Set(L.flatMap(e => [e.primary, ...e.secondary]).filter(m => !MUSCLES[m]))];
+const badE = [...new Set(L.map(e => e.equipment).filter(q => !EQUIPMENT[q]))];
+const badT = [...new Set(L.map(e => e.track).filter(t => !['wr','br','dur','cardio'].includes(t)))];
+console.log('count:', L.length);
+console.log('dup ids:', dup);
+console.log('bad muscles:', badM);
+console.log('bad equipment:', badE);
+console.log('bad track:', badT);

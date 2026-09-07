@@ -1,0 +1,10 @@
+# Browser profiles created by the VS Code launch configs (keeps IndexedDB
+# between debug runs — not something to commit).
+.vscode/.browser-profile*/
+
+# Smoke-test output
+screenshots/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
