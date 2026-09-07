@@ -115,7 +115,7 @@ It then opens full-screen, with no browser chrome, and works offline.
 index.html              app shell
 styles.css              design tokens + every component
 manifest.webmanifest    PWA metadata
-sw.js                   offline cache (bump CACHE to ship an update)
+sw.js                   offline cache (bump CACHE to force an instant update)
 src/
   app.js                hash router, tab bar, rest-timer bar, boot
   store.js              all state; loads into memory, writes through to IndexedDB
@@ -170,6 +170,11 @@ plain array scan. No indexing strategy to maintain.
   value is reachable only by hovering
 - they re-render at true pixel width via `ResizeObserver`, so axis labels never
   shrink on a phone
+
+**Updates land one launch later.** The service worker serves cached assets
+immediately and refetches them in the background, so a redeploy shows up the
+next time you open the app. Bump `CACHE` in `sw.js` if you want it to apply on
+the very next launch instead.
 
 **Colour** is a colourblind-safe palette validated against the light and dark
 surfaces rather than eyeballed; dark mode is a separately chosen set of steps,

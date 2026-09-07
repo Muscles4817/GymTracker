@@ -1,5 +1,8 @@
 // Offline shell. Gym basements have no signal, so everything is precached.
-// Bump CACHE when any app file changes — that's what ships the update.
+//
+// Assets are served stale-while-revalidate: a redeploy is fetched in the
+// background and lands on the *next* launch. Bump CACHE when you want an
+// update to apply immediately instead of one launch later.
 
 const CACHE = 'gymtracker-v1';
 
