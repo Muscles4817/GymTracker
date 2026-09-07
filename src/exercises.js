@@ -40,10 +40,13 @@ export const EXERCISE_LIBRARY = [
   E('Incline Dumbbell Fly', 'dumbbell', 'chest', ['shoulders'], 'iso'),
   E('Dumbbell Pullover', 'dumbbell', 'chest', ['lats'], 'iso'),
   E('Cable Crossover', 'cable', 'chest', [], 'iso'),
+  E('Cable Chest Press', 'cable', 'chest', ['triceps', 'shoulders'], 'comp'),
   E('Low-to-High Cable Fly', 'cable', 'chest', ['shoulders'], 'iso'),
   E('High-to-Low Cable Fly', 'cable', 'chest', [], 'iso'),
   E('Seated Cable Fly', 'cable', 'chest', [], 'iso'),
   E('Pec Deck Machine', 'machine', 'chest', [], 'iso'),
+  E('Incline Chest Fly Machine', 'machine', 'chest', ['shoulders'], 'iso'),
+  E('Decline Chest Fly Machine', 'machine', 'chest', [], 'iso'),
   E('Chest Press Machine', 'machine', 'chest', ['triceps', 'shoulders'], 'comp'),
   E('Incline Chest Press Machine', 'machine', 'chest', ['shoulders', 'triceps'], 'comp'),
   E('Decline Chest Press Machine', 'machine', 'chest', ['triceps'], 'comp'),
@@ -79,6 +82,7 @@ export const EXERCISE_LIBRARY = [
   E('Wide-Grip Seated Cable Row', 'cable', 'upperback', ['reardelts', 'lats'], 'comp'),
   E('Single-Arm Cable Row', 'cable', 'lats', ['upperback', 'biceps'], 'comp'),
   E('Machine Row', 'machine', 'upperback', ['lats', 'biceps'], 'comp'),
+  E('Iso-Lateral Row', 'machine', 'upperback', ['lats', 'biceps'], 'comp'),
   E('Smith Machine Row', 'smith', 'upperback', ['lats', 'biceps'], 'comp'),
   E('Inverted Row', 'bodyweight', 'upperback', ['lats', 'biceps'], 'comp', 'br'),
   E('Lat Pulldown', 'cable', 'lats', ['biceps', 'upperback'], 'comp'),
@@ -88,6 +92,7 @@ export const EXERCISE_LIBRARY = [
   E('Single-Arm Lat Pulldown', 'cable', 'lats', ['biceps'], 'comp'),
   E('Straight-Arm Pulldown', 'cable', 'lats', [], 'iso'),
   E('Machine Pulldown', 'machine', 'lats', ['biceps'], 'comp'),
+  E('Iso-Lateral Pulldown', 'machine', 'lats', ['biceps'], 'comp'),
   E('Pull-Up', 'bodyweight', 'lats', ['biceps', 'upperback'], 'comp', 'br'),
   E('Chin-Up', 'bodyweight', 'lats', ['biceps'], 'comp', 'br'),
   E('Neutral-Grip Pull-Up', 'bodyweight', 'lats', ['biceps'], 'comp', 'br'),
@@ -208,6 +213,7 @@ export const EXERCISE_LIBRARY = [
   E('Lying Leg Curl', 'machine', 'hamstrings', ['calves'], 'iso'),
   E('Seated Leg Curl', 'machine', 'hamstrings', [], 'iso'),
   E('Standing Leg Curl', 'machine', 'hamstrings', [], 'iso'),
+  E('Single-Leg Curl', 'machine', 'hamstrings', [], 'iso'),
   E('Nordic Hamstring Curl', 'bodyweight', 'hamstrings', [], 'iso', 'br'),
   E('Glute-Ham Raise', 'bodyweight', 'hamstrings', ['glutes'], 'comp', 'br'),
   E('Cable Pull-Through', 'cable', 'glutes', ['hamstrings'], 'comp'),
@@ -308,4 +314,4 @@ export const EXERCISE_LIBRARY = [
   E('Thoracic Extension', 'other', 'upperback', [], 'iso', 'dur'),
 ];
 
-export const LIBRARY_VERSION = 1;
+export const LIBRARY_VERSION = 2;

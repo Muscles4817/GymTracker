@@ -513,30 +513,99 @@ ${timedRoundTrip}`);
       await s.deleteWorkout(s.activeWorkout().id);
     })()`, 'discard routine workout');
 
+  // ------------------------------------------------------------- 11d-2. routine templates
+  await evaluate('location.hash = "#/routines"');
+  await waitFor('[data-a="template"]', 5000, 'template button');
+  await evaluate('document.querySelector(\'[data-a="template"]\').click()');
+  await waitFor('[data-a="add-group"]', 5000, 'template sheet');
+  await evaluate('document.querySelector(\'[data-a="add-group"][data-group="gym"]\').click()');
+  await sleep(400);
+  await evaluate('document.querySelector(\'[data-a="template"]\').click()');
+  await waitFor('[data-a="add-group"]', 5000, 'template sheet');
+  await sleep(350); // let the sheet finish sliding up before capturing
+  await shot('routine-templates');
+  await evaluate('document.querySelector(\'[data-a="add-group"][data-group="home"]\').click()');
+  await sleep(400);
+
+  const templates = await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      const t = await import(new URL('src/routine-templates.js', location.href));
+      const added = s.allRoutines().filter(r => t.ROUTINE_TEMPLATES.some(x => x.name === r.name));
+      const unresolved = t.ROUTINE_TEMPLATES.flatMap(
+        tpl => tpl.items.filter(i => !s.exerciseById(i.exerciseId)).map(i => tpl.id + ':' + i.exerciseId)
+      );
+      const chest = added.find(r => r.name === 'Workout 1 – Chest');
+      await s.startFromRoutine(chest.id);
+      const w = s.activeWorkout();
+      return {
+        added: added.length,
+        catalogue: t.ROUTINE_TEMPLATES.length,
+        unresolved,
+        rows: document.querySelectorAll('.routine-row').length,
+        started: w.name,
+        entries: w.entries.length,
+        firstSets: w.entries[0].sets.length,
+        firstPrefill: [w.entries[0].sets[0].w, w.entries[0].sets[0].r],
+      };
+    })()`, 'routine templates');
+
+  if (templates.unresolved.length) {
+    fail('Template exercises', `unknown ids: ${templates.unresolved.join(', ')}`);
+  } else if (templates.added !== templates.catalogue) {
+    fail('Routine templates', `added ${templates.added} of ${templates.catalogue}`);
+  } else if (templates.started !== 'Workout 1 – Chest' || templates.entries !== 7) {
+    fail('Template start', JSON.stringify(templates));
+  } else if (templates.firstSets !== 4 || templates.firstPrefill[0] !== 40 || templates.firstPrefill[1] !== 10) {
+    fail('Template prefill', `first entry ${templates.firstSets} sets, prefill ${JSON.stringify(templates.firstPrefill)}`);
+  } else {
+    ok(
+      'Routine templates added and started',
+      `${templates.added} routines, "${templates.started}" prefilled 4 × 10 @ 40 kg`
+    );
+  }
+  await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      await s.deleteWorkout(s.activeWorkout().id);
+    })()`, 'discard template workout');
+
   // ------------------------------------------------------------- 11e. custom exercise
   const custom = await evaluate(`
     (async () => {
       const s = await import(new URL('src/store.js', location.href));
+      const lib = await import(new URL('src/exercises.js', location.href));
       const ex = await s.createCustomExercise({
         name: 'Hammer Strength Iso Row', equipment: 'machine', primary: 'lats', track: 'wr',
       });
-      return { id: ex.id, found: !!s.exerciseById(ex.id), total: s.activeExercises().length };
+      return {
+        id: ex.id,
+        found: !!s.exerciseById(ex.id),
+        total: s.activeExercises().length,
+        expected: lib.EXERCISE_LIBRARY.length + 1,
+      };
     })()`, 'custom exercise');
-  if (!custom.found || custom.total !== 251) fail('Custom exercise', JSON.stringify(custom));
+  if (!custom.found || custom.total !== custom.expected) fail('Custom exercise', JSON.stringify(custom));
   else ok('Custom exercise created', `library now ${custom.total}`);
 
   // ------------------------------------------------------------- 12. backup round-trip
   const roundTrip = await evaluate(`
     (async () => {
       const s = await import(new URL('src/store.js', location.href));
+      const lib = await import(new URL('src/exercises.js', location.href));
       const backup = s.exportData();
       const json = JSON.stringify(backup);
       await s.resetEverything();
       const after = s.completedWorkouts().length;
       await s.importData(JSON.parse(json), { replace: true });
-      return { wiped: after, restored: s.completedWorkouts().length, exercises: s.activeExercises().length };
+      return {
+        wiped: after,
+        restored: s.completedWorkouts().length,
+        exercises: s.activeExercises().length,
+        expected: lib.EXERCISE_LIBRARY.length + 1,
+      };
     })()`, 'backup');
-  if (roundTrip.wiped !== 0 || roundTrip.restored !== 2 || roundTrip.exercises !== 251) {
+  if (roundTrip.wiped !== 0 || roundTrip.restored !== 2 || roundTrip.exercises !== roundTrip.expected) {
     fail('Backup round-trip', JSON.stringify(roundTrip));
   } else {
     ok('Backup export → wipe → restore', `${roundTrip.restored} workouts and the custom exercise recovered`);
