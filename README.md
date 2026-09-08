@@ -11,7 +11,7 @@ screen and works with the phone in airplane mode.
 ## What it does
 
 **Log**
-- 250 built-in exercises and machines, searchable and filterable by muscle or equipment
+- 256 built-in exercises and machines, searchable and filterable by muscle or equipment
 - Weight × reps, plus timed holds (planks, hangs) and cardio (distance + time)
 - Per-set **RPE**, per-set **notes**, and **warm-up / drop-set / to-failure** flags
 - **Rest timer** that starts on its own when you tick a set — ±15s, pause, skip,
@@ -22,6 +22,7 @@ screen and works with the phone in airplane mode.
 
 **Routines**
 - Save any finished workout as a template, or build one from scratch
+- Add a ready-made programme from the built-in templates (gym and home plans)
 - Starting a routine pre-fills the sets, reps and weights — you only correct what changed
 
 **Progress**
@@ -120,13 +121,14 @@ src/
   app.js                hash router, tab bar, rest-timer bar, boot
   store.js              all state; loads into memory, writes through to IndexedDB
   db.js                 IndexedDB wrapper
-  exercises.js          the 250-exercise seed library
+  exercises.js          the 256-exercise seed library
   charts.js             hand-rolled SVG charts
   share.js              WhatsApp text, CSV, chart-to-PNG, delivery
   timer.js              rest timer
   ui.js                 DOM helpers, icons, toasts, dialogs, sheets
   util.js               dates, units, formatting
   theme.js              light/dark stamping
+  routine-templates.js  ready-made routine blueprints
   views/                log, history, library, progress, routines, settings, picker
 .vscode/
   launch.json           F5 run configurations

@@ -564,7 +564,22 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 
 .routine-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); }
 .routine-row:first-child { border-top: 0; }
-.routine-row .history-row { flex: 1; border-top: 0; }
+.routine-row .history-row { flex: 1; min-width: 0; border-top: 0; }
+
+.hero-actions { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
+.hero-actions .btn { flex: 1 1 160px; width: auto; }
+
+.template-row { padding: 10px 0; }
+.template-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.template-group-head h3 { margin: 0; }
+.template-group-head p { margin: 2px 0 0; font-size: 12.5px; }
+.template-group-head .btn { flex: none; }
 
 .routine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .routine-chip {

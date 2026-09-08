@@ -5,7 +5,8 @@ import {
   activeWorkout, exerciseName, exerciseById, getSettings,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
-import { node, esc, icon, emptyState, confirmDialog, promptDialog, toast, on } from '../ui.js';
+import { ROUTINE_TEMPLATES, TEMPLATE_GROUPS, templateById, routineFromTemplate } from '../routine-templates.js';
+import { node, esc, icon, emptyState, confirmDialog, promptDialog, sheet, toast, on } from '../ui.js';
 import { uid, toDisplayWeight, toStoredWeight, plural, debounce } from '../util.js';
 
 export function routinesView() {
@@ -17,7 +18,10 @@ export function routinesView() {
     <section class="card hero">
       <h2>Routines</h2>
       <p class="muted">Templates that pre-fill your sets. Start one and you only fill in what actually happened.</p>
-      <button class="btn btn-primary" data-a="new" type="button">${icon('plus')} New routine</button>
+      <div class="hero-actions">
+        <button class="btn btn-primary" data-a="new" type="button">${icon('plus')} New routine</button>
+        <button class="btn btn-ghost" data-a="template" type="button">${icon('list')} Add from template</button>
+      </div>
     </section>`)
   );
 
@@ -27,7 +31,7 @@ export function routinesView() {
         `<section class="card">${emptyState({
           iconName: 'repeat',
           title: 'No routines yet',
-          message: 'Create one here, or finish a workout and save it as a routine in one tap.',
+          message: 'Add one from a template, create your own, or finish a workout and save it as a routine in one tap.',
         })}</section>`
       )
     );
@@ -58,6 +62,8 @@ export function routinesView() {
     );
   }
 
+  el.querySelector('[data-a="template"]').addEventListener('click', () => openTemplatePicker());
+
   el.querySelector('[data-a="new"]').addEventListener('click', async () => {
     const name = await promptDialog({ title: 'New routine', label: 'Name', placeholder: 'e.g. Push Day A', confirmText: 'Create' });
     if (!name?.trim()) return;
@@ -73,6 +79,84 @@ export function routinesView() {
   });
 
   return { el };
+}
+
+// ---------------------------------------------------------------- templates
+
+/** Ensure a copied template does not collide with a routine the user already has. */
+function uniqueName(name) {
+  const taken = new Set(allRoutines().map((r) => r.name));
+  if (!taken.has(name)) return name;
+  let n = 2;
+  while (taken.has(`${name} (${n})`)) n++;
+  return `${name} (${n})`;
+}
+
+async function addTemplate(tpl) {
+  const draft = routineFromTemplate(tpl);
+  return saveRoutine({ ...draft, name: uniqueName(draft.name) });
+}
+
+function openTemplatePicker() {
+  const groups = Object.entries(TEMPLATE_GROUPS).map(([key, g]) => {
+    const list = ROUTINE_TEMPLATES.filter((t) => t.group === key);
+    return `
+      <section class="template-group">
+        <header class="template-group-head">
+          <div>
+            <h3>${esc(g.name)}</h3>
+            <p class="muted">${esc(g.note)}</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" data-a="add-group" data-group="${esc(key)}" type="button">
+            Add all ${list.length}
+          </button>
+        </header>
+        <ul class="history-list">
+          ${list
+            .map(
+              (t) => `
+            <li class="routine-row template-row">
+              <span class="history-main">
+                <span class="history-name">${esc(t.name)}</span>
+                <span class="history-meta">${plural(t.items.length, 'exercise')} · ${esc(
+                  t.items.slice(0, 3).map((i) => exerciseName(i.exerciseId)).join(', ')
+                )}${t.items.length > 3 ? '…' : ''}</span>
+              </span>
+              <button class="btn btn-primary btn-sm" data-a="add-one" data-id="${esc(t.id)}" type="button">
+                ${icon('plus')} Add
+              </button>
+            </li>`
+            )
+            .join('')}
+        </ul>
+      </section>`;
+  });
+
+  sheet({
+    title: 'Routine templates',
+    wide: true,
+    bodyHtml: `<div class="stack">${groups.join('')}</div>`,
+    onMount(body, close) {
+      on(body, 'click', '[data-a="add-one"]', async (ev, btn) => {
+        const tpl = templateById(btn.dataset.id);
+        if (!tpl) return;
+        const r = await addTemplate(tpl);
+        close();
+        toast(`Added “${r.name}”`);
+        location.hash = `#/routines/${r.id}`;
+      });
+
+      on(body, 'click', '[data-a="add-group"]', async (ev, btn) => {
+        const key = btn.dataset.group;
+        const list = ROUTINE_TEMPLATES.filter((t) => t.group === key);
+        for (const tpl of list) await addTemplate(tpl);
+        close();
+        toast(`Added ${plural(list.length, 'routine')}`);
+        // Already on #/routines, so the hash never changes — re-render by hand.
+        window.dispatchEvent(new Event('hashchange'));
+      });
+    },
+  });
 }
 
 // ---------------------------------------------------------------- editor
