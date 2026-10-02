@@ -4,7 +4,7 @@
 // background and lands on the *next* launch. Bump CACHE when you want an
 // update to apply immediately instead of one launch later.
 
-const CACHE = 'gymtracker-v1';
+const CACHE = 'gymtracker-v2';
 
 const ASSETS = [
   './',

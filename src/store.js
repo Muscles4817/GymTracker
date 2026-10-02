@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS = {
   restDefault: 90,
   restAuto: true,
   theme: 'system',
+  textScale: 1,
   sound: true,
   vibrate: true,
   trainerName: '',
