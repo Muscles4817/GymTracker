@@ -69,16 +69,18 @@ The debug browser uses a profile under `.vscode/.browser-profile-*` rather than
 a throwaway one, so the workouts you log while testing are still there next
 time you hit F5.
 
-There are also tasks under **Terminal → Run Task…** for the smoke test,
+There are also tasks under **Terminal → Run Task…** for the unit and smoke tests,
 screenshots, regenerating the icons, and validating the exercise data. `Ctrl+Shift+P`
-→ *Tasks: Run Test Task* runs the smoke test directly.
+→ *Tasks: Run Test Task* runs the unit tests directly.
 
 ### From a terminal
 
 ```bash
 npm start                    # → http://localhost:5173
 npm run serve:lan            # also binds your LAN address, for your phone
-npm test                     # the end-to-end smoke test
+npm test                     # unit tests — pure logic, no browser, under a second
+npm run test:smoke           # the end-to-end smoke test in headless Chrome
+npm run test:all             # both
 npm run test:shots           # ...and save a screenshot of every screen
 npm run check                # validate the exercise library data
 npm run icons                # regenerate the app icons
@@ -131,6 +133,9 @@ src/
 .vscode/
   launch.json           F5 run configurations
   tasks.json            server, tests, icon and data tasks
+test/
+  util.test.mjs         dates, durations, units, formatting, search
+  store.test.mjs        volume, set counting, duration, routine derivation
 tools/
   serve.mjs             local static server
   make-icons.mjs        regenerates the app icons
@@ -140,12 +145,30 @@ tools/
 
 ## Testing
 
-The smoke test drives real Chrome over the DevTools protocol (nothing to
-install) and walks a full session: start a workout → search the library → add
+Two layers, both dependency-free.
+
+**Unit tests** (`npm test`) cover the pure logic — dates and week keys, duration
+parsing, kg/lb and distance conversion, volume and set counting, and routine
+derivation — with Node's built-in runner. They need no browser and finish in
+under a second, so they're the ones to run while editing.
+
+**The smoke test** (`npm run test:smoke`) drives real Chrome over the DevTools
+protocol and walks a full session: start a workout → search the library → add
 exercises → log sets with RPE → flag a warm-up → finish → read the share text →
 check every chart renders marks → switch units → switch to dark mode → save and
 start a routine → export, wipe and restore a backup. It fails on any console
 error or uncaught exception.
+
+Anything that reads live IndexedDB state — weekly totals, the progress series,
+overall stats — is covered by the smoke test rather than the unit tests, since
+it needs a seeded database.
+
+The app names sessions by time of day, so `--tz` forces the browser's clock when
+you need to reproduce something time-dependent:
+
+```bash
+npm run test:smoke -- --tz Pacific/Auckland
+```
 
 ---
 

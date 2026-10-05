@@ -3,9 +3,14 @@
 // fails on any console error, page exception or missing element.
 //
 //   node tools/smoke-test.mjs [--headed] [--shots <dir>] [--url <base>] [--dark]
+//                             [--tz <zone>]
 //
 // --url points the run at an already-served copy (a subdirectory host, or the
 // live site) instead of starting the bundled server.
+//
+// --tz overrides the browser's timezone, e.g. --tz Pacific/Auckland. The app
+// names sessions by the hour, so this is how you reproduce a time-of-day bug
+// without waiting for the clock. (Chrome ignores the TZ env var on Windows.)
 //
 // Uses the DevTools protocol directly, so there is nothing to install.
 
@@ -25,6 +30,8 @@ const DARK = process.argv.includes('--dark'); // capture every screenshot in dar
 const shotsIdx = process.argv.indexOf('--shots');
 const SHOTS = shotsIdx > -1 ? process.argv[shotsIdx + 1] : null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
+const tzIdx = process.argv.indexOf('--tz');
+const TZ = tzIdx > -1 ? process.argv[tzIdx + 1] : null;
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
@@ -171,6 +178,7 @@ async function main() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {
     width: 430, height: 900, deviceScaleFactor: 2, mobile: true,
   }, sessionId);
+  if (TZ) await cdp.send('Emulation.setTimezoneOverride', { timezoneId: TZ }, sessionId);
 
   const evaluate = async (expression, label = 'evaluate') => {
     const res = await cdp.send(
@@ -328,6 +336,18 @@ async function main() {
   const hash = await evaluate('location.hash');
   if (!/^#\/history\//.test(hash)) fail('Finish', `expected to land on a workout page, hash is ${hash}`);
   else ok('Workout finished', `routed to ${hash}`);
+  // Hold on to the id. Later steps need *this* workout, and the app names
+  // sessions by time of day, so matching on the name only worked between
+  // 11am and 5pm.
+  const strengthWorkoutId = hash.replace('#/history/', '');
+  // Reported so a time-dependent failure is visible in the log rather than
+  // showing up as a mystery ten steps later.
+  const strengthWorkoutName = await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      return s.workoutById(${JSON.stringify(strengthWorkoutId)})?.name ?? '(missing)';
+    })()`, 'workout name');
+  ok('Session named by time of day', strengthWorkoutName);
   await waitFor('.done-sets', 5000, 'workout detail sets');
   await shot('detail');
 
@@ -490,7 +510,8 @@ ${timedRoundTrip}`);
   const routine = await evaluate(`
     (async () => {
       const s = await import(new URL('src/store.js', location.href));
-      const done = s.completedWorkouts().find(w => w.name === 'Afternoon Workout');
+      const done = s.workoutById(${JSON.stringify(strengthWorkoutId)});
+      if (!done) throw new Error('strength workout ${strengthWorkoutId} is missing');
       const r = await s.saveRoutine(s.routineFromWorkout(done, 'Push Day A'));
       await s.startFromRoutine(r.id);
       const w = s.activeWorkout();
@@ -567,8 +588,9 @@ function finish(cleanup) {
   process.exit(problems.length ? 1 : 0);
 }
 
+// A crash still reports like a failure: the steps that did run are worth
+// seeing, and an aborted run is a failed run, not a separate category.
 main().catch((err) => {
-  console.error('\nSmoke test crashed:', err);
-  console.log(steps.join('\n'));
-  process.exit(2);
+  fail('Run aborted', err?.message || String(err));
+  finish(() => {});
 });
