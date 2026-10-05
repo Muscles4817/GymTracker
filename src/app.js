@@ -1,9 +1,11 @@
 // App shell: hash router, tab bar, rest-timer bar, install & backup nudges.
 
-import { init, getSettings, activeWorkout, subscribe, completedWorkouts } from './store.js';
+import {
+  init, getSettings, activeWorkout, subscribe, completedWorkouts, workingSets, workoutDuration,
+} from './store.js';
 import { applyTheme, applyTextScale } from './theme.js';
 import { node, icon, esc, toast, $ } from './ui.js';
-import { fmtClock } from './util.js';
+import { fmtClock, fmtDuration, plural } from './util.js';
 import {
   subscribeTimer, getTimer, adjustRest, pauseRest, resumeRest, stopRest, primeAudio,
 } from './timer.js';
@@ -120,6 +122,7 @@ function mountRestBar() {
   const progress = bar.querySelector('.rest-progress');
   const toggleBtn = bar.querySelector('[data-a="toggle"]');
 
+  bar.querySelector('.rest-label').addEventListener('click', () => (location.hash = '#/log'));
   bar.querySelector('[data-a="minus"]').addEventListener('click', () => adjustRest(-15));
   bar.querySelector('[data-a="plus"]').addEventListener('click', () => adjustRest(15));
   bar.querySelector('[data-a="stop"]').addEventListener('click', () => stopRest());
@@ -141,6 +144,49 @@ function mountRestBar() {
     bar.classList.toggle('is-paused', t.paused);
     bar.classList.toggle('is-done', t.remaining <= 0);
   });
+}
+
+// ------------------------------------------------------- resume-workout bar
+
+/** A session you walked away from should be one tap away from anywhere.
+    Stands down while the rest bar is up: that bar already says a workout is
+    running, and it takes you back when you tap its label. */
+function mountResumeBar() {
+  const bar = node(`
+    <a id="resume-bar" class="resume-bar" href="#/log" hidden>
+      <span class="resume-icon">${icon('dumbbell')}</span>
+      <span class="resume-text">
+        <span class="resume-name" data-resume-name></span>
+        <span class="resume-meta" data-resume-meta></span>
+      </span>
+      <span class="resume-go">Resume${icon('chevron')}</span>
+    </a>`);
+  document.body.appendChild(bar);
+
+  const nameEl = bar.querySelector('[data-resume-name]');
+  const metaEl = bar.querySelector('[data-resume-meta]');
+  let tick = null;
+
+  const paint = () => {
+    const w = activeWorkout();
+    const show = !!w && location.hash !== '#/log' && !getTimer().active;
+    document.body.classList.toggle('resume-active', show);
+    bar.hidden = !show;
+    if (!show) {
+      clearInterval(tick);
+      tick = null;
+      return;
+    }
+    nameEl.textContent = w.name || 'Workout';
+    const sets = workingSets(w);
+    metaEl.textContent = `${fmtDuration(workoutDuration(w) || 0)} · ${plural(sets, 'set')}`;
+    if (!tick) tick = setInterval(paint, 1000);
+  };
+
+  paint();
+  window.addEventListener('hashchange', paint);
+  subscribe(paint);
+  subscribeTimer(paint);
 }
 
 // ---------------------------------------------------------------- shell
@@ -224,6 +270,7 @@ async function boot() {
   applyTextScale(getSettings().textScale);
   mountShell();
   mountRestBar();
+  mountResumeBar();
 
   if (!location.hash) location.hash = '#/log';
   renderRoute();

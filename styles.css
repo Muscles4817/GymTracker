@@ -856,6 +856,58 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 }
 .rest-btn:hover { background: rgba(255, 255, 255, 0.32); }
 
+/* ------------------------------------------------------------ resume bar */
+
+/* Sits in the same slot as the rest bar, and never at the same time, so the
+   two never stack on top of the tab bar. */
+.resume-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
+  z-index: 44;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 9px 14px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+}
+.resume-icon { display: inline-flex; color: var(--accent); flex: none; }
+.resume-icon .icon { width: 1.5rem; height: 1.5rem; }
+.resume-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.resume-name {
+  font-weight: 650;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resume-meta { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.resume-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  min-height: var(--tap);
+  padding-left: 6px;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+.resume-go .icon { width: 1.125rem; height: 1.125rem; }
+
+/* The bar floats over the page, so the page needs room under it. */
+body.resume-active .content {
+  padding-bottom: calc(var(--tab-h) + 92px + 3.5rem + env(safe-area-inset-bottom));
+}
+
+.rest-label { cursor: pointer; }
+
 /* ------------------------------------------------------------------ overlays */
 
 .modal-overlay, .sheet-overlay {

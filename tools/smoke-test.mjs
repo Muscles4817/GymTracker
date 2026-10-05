@@ -406,6 +406,40 @@ async function main() {
     ok('Deleting an unticked set passes without an undo prompt');
   }
 
+  // ------------------------------------------------------------- 5c. resume bar
+  // The rest bar owns this slot while it is up, so clear it first.
+  await evaluate(`
+    (async () => {
+      const t = await import(new URL('src/timer.js', location.href));
+      t.stopRest();
+    })()`, 'stop rest');
+  await sleep(250);
+
+  await evaluate("location.hash = '#/history'");
+  await sleep(600);
+  const resume = await evaluate(`
+    (() => {
+      const b = document.getElementById('resume-bar');
+      if (!b) return { missing: true };
+      return { hidden: b.hidden, name: b.querySelector('[data-resume-name]').textContent };
+    })()`, 'resume bar');
+  if (resume.missing || resume.hidden !== false) {
+    fail('Resume bar', `not shown off the Log screen with a workout running: ${JSON.stringify(resume)}`);
+  } else {
+    ok('Resume bar shows off the Log screen', resume.name);
+  }
+
+  await evaluate("document.getElementById('resume-bar').click()");
+  await sleep(600);
+  const landed = await evaluate('location.hash');
+  if (landed !== '#/log') {
+    fail('Resume bar tap', `landed on ${landed}, expected #/log`);
+  } else if (!(await evaluate("document.getElementById('resume-bar').hidden"))) {
+    fail('Resume bar on Log', 'still showing once back on the Log screen');
+  } else {
+    ok('Tapping it returns to the workout, and it stands down there');
+  }
+
   // ------------------------------------------------------------- 6. finish
   await evaluate('document.querySelector(\'[data-a="finish"]\').click()');
   await sleep(600);
