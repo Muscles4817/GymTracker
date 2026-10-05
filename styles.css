@@ -484,17 +484,28 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   white-space: pre-wrap;
 }
 
-/* The set row is the densest thing in the app and the two inputs in the middle
-   are the most-tapped controls, so they get the flexible space and everything
-   else is held to a fixed minimum. A container query — not a media query — so
-   the row also reflows when the Text size setting grows the rem. */
-/* overflow-x is the safety net for the extreme combination (a 320px phone at
-   the largest Text size): the row scrolls inside the card rather than spilling
-   its buttons off the edge. */
+/* The set row is the densest thing in the app, and the two inputs in the
+   middle are the most-tapped controls, so the layout is built around giving
+   them as much width as exists.
+
+   Mobile-first and deliberately two-line: the button cluster is ~120px, and
+   carrying it on the field line costs more than any phone can spare. Keeping
+   the fields on their own line means width translates straight into input
+   size — 100px at 360, 132px at 428 — instead of being eaten by furniture.
+
+   Container queries, not media queries, so the row also reflows when the Text
+   size setting grows the rem rather than only when the viewport changes. */
 .set-table { margin-top: 10px; container-type: inline-size; overflow-x: auto; }
+
+/* The header has no cell for the actions column, so where that column exists
+   it must be a fixed width — left as `auto` it collapses to zero in the
+   header, the free space lands in the 1fr columns, and the labels drift off
+   the inputs they are labelling. */
+.set-head span:empty { display: none; }
+
 .set-head, .set-row {
   display: grid;
-  grid-template-columns: var(--tap-sm) 3rem minmax(3.75rem, 1fr) minmax(3.75rem, 1fr) 3.75rem var(--set-actions);
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem;
   gap: 6px;
   align-items: center;
 }
@@ -502,51 +513,49 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 .set-table[data-track="dur"] .set-row,
 .set-table[data-track="cardio"] .set-head,
 .set-table[data-track="cardio"] .set-row {
-  grid-template-columns: var(--tap-sm) 3rem minmax(3.75rem, 1fr) minmax(3.75rem, 1fr) var(--set-actions);
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
 }
-/* The header has no cell for the actions column, so that column must be a
-   fixed width — left as `auto` it collapses to zero in the header, the free
-   space lands in the 1fr columns, and the labels drift off their inputs. */
-.set-head span:empty { display: none; }
-.set-end { grid-column: -2 / -1; }
+/* "Last session" is reference, not input. It shares the second line with the
+   row buttons: both span the row, and the padding keeps the text clear of
+   them. */
+.set-head > span:nth-child(2) { display: none; }
+.set-row > * { grid-row: 1; }
+.set-row > .prev {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  text-align: left;
+  padding-right: calc(var(--set-actions) + 8px);
+}
+.set-row > .prev:not(:empty)::before { content: "Last: "; }
+.set-row > .set-end { grid-row: 2; grid-column: 1 / -1; justify-self: end; }
 
-/* Tight row: "last session" is reference, not input, so it drops to its own
-   line under the fields rather than competing with them for width. */
-@container (max-width: 26rem) {
-  .set-head > span:nth-child(2) { display: none; }
+/* One line only once there is genuinely room for it: enough for the buttons,
+   the previous-session column *and* inputs wider than the two-line layout was
+   giving. That lands around a small tablet; every phone keeps two lines. Going
+   single-line any earlier trades a lot of input width for a little height. */
+@container (min-width: 31rem) {
   .set-head, .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem var(--set-actions);
+    grid-template-columns:
+      var(--tap-sm) 3rem minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem var(--set-actions);
   }
   .set-table[data-track="dur"] .set-head,
   .set-table[data-track="dur"] .set-row,
   .set-table[data-track="cardio"] .set-head,
   .set-table[data-track="cardio"] .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
+    grid-template-columns:
+      var(--tap-sm) 3rem minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
   }
-  .set-row > * { grid-row: 1; }
-  .set-row > .prev { grid-row: 2; grid-column: 2 / -1; text-align: left; }
-  .set-row > .prev:not(:empty)::before { content: "Last: "; }
-}
-
-/* Tighter still — a small phone, or a large Text size. The fields alone keep
-   the first line; "last session" and the row's buttons share the second. */
-@container (max-width: 22rem) {
-  .set-head, .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem;
-  }
-  .set-table[data-track="dur"] .set-head,
-  .set-table[data-track="dur"] .set-row,
-  .set-table[data-track="cardio"] .set-head,
-  .set-table[data-track="cardio"] .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
-  }
-  /* Both span row 2; the padding on .prev keeps its text clear of the buttons. */
+  .set-head > span:nth-child(2) { display: revert; }
   .set-row > .prev {
-    grid-column: 1 / -1;
-    padding-right: calc(var(--set-actions) + 8px);
+    grid-row: 1;
+    grid-column: 2;
+    text-align: center;
+    padding-right: 0;
   }
-  .set-row > .set-end { grid-row: 2; grid-column: 1 / -1; justify-self: end; }
+  .set-row > .prev:not(:empty)::before { content: none; }
+  .set-row > .set-end { grid-row: 1; grid-column: -2 / -1; justify-self: stretch; }
 }
+
 .set-head {
   padding: 0 0 5px;
   font-size: var(--fs-micro);
