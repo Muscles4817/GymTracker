@@ -306,7 +306,13 @@ function entryCard(entry, index, ctx) {
     const e = findEntry(ctx.current(), entry.id);
     if (!e) return;
     rowsEl.innerHTML = '';
-    e.sets.forEach((s, i) => rowsEl.appendChild(setRow(s, i, e, ctx, track, last, rpeOn)));
+    // The first set still outstanding is the one you're about to do.
+    const nextUp = e.sets.findIndex((x) => !x.done);
+    e.sets.forEach((s, i) => {
+      const el = setRow(s, i, e, ctx, track, last, rpeOn);
+      if (i === nextUp) el.classList.add('is-next');
+      rowsEl.appendChild(el);
+    });
   };
   drawRows();
 
