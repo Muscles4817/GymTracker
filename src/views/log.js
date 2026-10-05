@@ -289,7 +289,7 @@ function entryCard(entry, index, ctx) {
         <div class="entry-tools">
           <button class="icon-btn" data-a="entry-note" title="Exercise note" aria-label="Exercise note">${icon('note')}</button>
           <button class="icon-btn" data-a="move-up" title="Move up" aria-label="Move up" ${index === 0 ? 'disabled' : ''}>${icon('chevronDown', 'flip')}</button>
-          <button class="icon-btn" data-a="remove-entry" title="Remove exercise" aria-label="Remove exercise">${icon('trash')}</button>
+          <button class="icon-btn danger" data-a="remove-entry" title="Remove exercise" aria-label="Remove exercise">${icon('trash')}</button>
         </div>
       </header>
       ${entry.notes?.trim() ? `<p class="entry-note">${esc(entry.notes.trim())}</p>` : ''}

@@ -6,7 +6,7 @@ import {
 } from '../store.js';
 import { workoutsToCsv, downloadBlob } from '../share.js';
 import { node, esc, icon, toast, confirmDialog, promptDialog } from '../ui.js';
-import { dayKey, fmtDateFull } from '../util.js';
+import { dayKey, fmtDateFull, plural } from '../util.js';
 import { applyTheme, applyTextScale, TEXT_SCALES } from '../theme.js';
 
 export function settingsView() {
@@ -168,12 +168,28 @@ export function settingsView() {
     } catch {
       return toast('That file is not valid JSON', { kind: 'warn' });
     }
-    const replace = await confirmDialog({
+    if (payload?.format !== 'gymtracker-backup') {
+      return toast('That file is not a GymTracker backup', { kind: 'warn' });
+    }
+
+    // Two steps on purpose. As one dialog, both buttons imported and there was
+    // no way out — dismissing it merged, which is not what dismissing means.
+    const here = completedWorkouts().length;
+    const incoming = payload.workouts?.length || 0;
+    const go = await confirmDialog({
       title: 'Restore this backup?',
-      message:
-        'Choose Replace to wipe what is here first, or Merge to add the backup on top of your current data.',
+      message: `The file holds ${plural(incoming, 'workout')} and ${plural(payload.routines?.length || 0, 'routine')}. This device has ${plural(here, 'workout')} right now.`,
+      confirmText: 'Continue',
+      cancelText: 'Cancel',
+    });
+    if (!go) return toast('Cancelled — nothing was imported');
+
+    const replace = await confirmDialog({
+      title: 'Replace or merge?',
+      message: `Replace deletes the ${plural(here, 'workout')} already on this device, then restores the backup. Merge keeps them and adds the backup alongside.`,
       confirmText: 'Replace everything',
       cancelText: 'Merge',
+      danger: true,
     });
     try {
       const res = await importData(payload, { replace });
