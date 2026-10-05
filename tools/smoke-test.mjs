@@ -283,6 +283,38 @@ async function main() {
         return 'ok';
       })()`);
 
+  // RPE is opt-in now. Check it is absent by default, then turn it on, because
+  // the share text and the timed-exercise row below both exercise it.
+  const rpeDefault = await evaluate(`
+    (() => {
+      const t = document.querySelector('.set-table');
+      return {
+        flag: t?.dataset.rpe,
+        select: !!t?.querySelector('.rpe'),
+        head: [...t.querySelectorAll('.set-head span')].map(x => x.textContent).filter(Boolean).join('|'),
+      };
+    })()`, 'rpe default');
+  if (rpeDefault.flag !== 'off' || rpeDefault.select) {
+    fail('RPE hidden by default', JSON.stringify(rpeDefault));
+  } else {
+    ok('RPE column hidden by default', rpeDefault.head);
+  }
+
+  await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      await s.saveSettings({ trackRpe: true });
+      location.hash = '#/history';
+    })()`, 'enable rpe');
+  await sleep(300);
+  await evaluate("location.hash = '#/log'");
+  await sleep(500);
+  if (!(await evaluate("!!document.querySelector('.set-table .rpe')", 'rpe on'))) {
+    fail('RPE column enabled', 'the select is still absent after turning the setting on');
+  } else {
+    ok('RPE column appears when the setting is on');
+  }
+
   await logSet(0, 0, 60, 10);
   await sleep(120);
   await evaluate('document.querySelectorAll(".entry")[0].querySelector(\'[data-a="toggle-done"]\').click()');

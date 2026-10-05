@@ -516,6 +516,16 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 .set-table[data-track="cardio"] .set-row {
   grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
 }
+/* RPE off: the column goes entirely, and the fields take the width back. */
+.set-table[data-rpe="off"] .set-head,
+.set-table[data-rpe="off"] .set-row {
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
+}
+.set-table[data-rpe="off"][data-track="dur"] .set-head,
+.set-table[data-rpe="off"][data-track="dur"] .set-row {
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr);
+}
+
 /* "Last session" is reference, not input. It shares the second line with the
    row buttons: both span the row, and the padding keeps the text clear of
    them. */
@@ -545,6 +555,15 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   .set-table[data-track="cardio"] .set-row {
     grid-template-columns:
       var(--tap-sm) 3rem minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
+  }
+  .set-table[data-rpe="off"] .set-head,
+  .set-table[data-rpe="off"] .set-row {
+    grid-template-columns:
+      var(--tap-sm) 3rem minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
+  }
+  .set-table[data-rpe="off"][data-track="dur"] .set-head,
+  .set-table[data-rpe="off"][data-track="dur"] .set-row {
+    grid-template-columns: var(--tap-sm) 3rem minmax(3.5rem, 1fr) var(--set-actions);
   }
   .set-head > span:nth-child(2) { display: revert; }
   .set-row > .prev {

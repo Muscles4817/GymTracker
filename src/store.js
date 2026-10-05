@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
   restAuto: true,
   theme: 'system',
   textScale: 1,
+  trackRpe: false,
   sound: true,
   vibrate: true,
   trainerName: '',
@@ -235,6 +236,12 @@ export async function deleteWorkout(id) {
 
 export const isSetFilled = (s) =>
   s.w != null || s.r != null || s.sec != null || s.dist != null;
+
+/** RPE is opt-in — it costs a column in the busiest row in the app, and most
+    sessions never use it. An entry that already carries one keeps showing it
+    regardless, so turning the setting off never hides data you logged. */
+export const showsRpe = (entry, trackRpe) =>
+  !!trackRpe || (entry?.sets || []).some((s) => s.rpe != null);
 
 // ---------------------------------------------------------------- routines
 

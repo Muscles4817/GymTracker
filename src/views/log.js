@@ -4,7 +4,7 @@ import {
   activeWorkout, startWorkout, startFromRoutine, updateWorkout, finishWorkout,
   deleteWorkout, workoutById, newSet, newEntry, exerciseById, exerciseName,
   workoutVolume, workingSets, workoutDuration, lastPerformance, allRoutines,
-  completedWorkouts, getSettings, isSetFilled,
+  completedWorkouts, getSettings, isSetFilled, showsRpe,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import {
@@ -275,6 +275,9 @@ function entryCard(entry, index, ctx) {
   const track = ex?.track || 'wr';
   const unit = getSettings().unit;
   const last = lastPerformance(entry.exerciseId, ctx.id);
+  // Cardio has no RPE field at all; otherwise it's the setting, unless this
+  // entry already carries one.
+  const rpeOn = track !== 'cardio' && showsRpe(entry, getSettings().trackRpe);
 
   const card = node(`
     <section class="card entry" data-entry="${esc(entry.id)}">
@@ -290,8 +293,8 @@ function entryCard(entry, index, ctx) {
         </div>
       </header>
       ${entry.notes?.trim() ? `<p class="entry-note">${esc(entry.notes.trim())}</p>` : ''}
-      <div class="set-table" data-track="${track}">
-        ${setHeader(track, unit)}
+      <div class="set-table" data-track="${track}" data-rpe="${rpeOn ? 'on' : 'off'}">
+        ${setHeader(track, unit, rpeOn)}
         <div class="set-rows"></div>
       </div>
       <button class="btn btn-ghost btn-sm add-set" data-a="add-set" type="button">${icon('plus')} Add set</button>
@@ -303,7 +306,7 @@ function entryCard(entry, index, ctx) {
     const e = findEntry(ctx.current(), entry.id);
     if (!e) return;
     rowsEl.innerHTML = '';
-    e.sets.forEach((s, i) => rowsEl.appendChild(setRow(s, i, e, ctx, track, last)));
+    e.sets.forEach((s, i) => rowsEl.appendChild(setRow(s, i, e, ctx, track, last, rpeOn)));
   };
   drawRows();
 
@@ -375,17 +378,18 @@ function lastSummary(last, unit, track) {
   return `Last (${relativeDay(last.day)}): ${parts.join(', ')}${more}`;
 }
 
-function setHeader(track, unit) {
+function setHeader(track, unit, rpeOn) {
+  const rpe = rpeOn ? ['RPE'] : [];
   const cols =
     track === 'cardio'
-      ? ['Set', 'Prev', distanceLabel(unit), 'Time', '', '']
+      ? ['Set', 'Prev', distanceLabel(unit), 'Time']
       : track === 'dur'
-        ? ['Set', 'Prev', 'Time', 'RPE', '', '']
-        : ['Set', 'Prev', unit, 'Reps', 'RPE', ''];
+        ? ['Set', 'Prev', 'Time', ...rpe]
+        : ['Set', 'Prev', unit, 'Reps', ...rpe];
   return `<div class="set-head">${cols.map((c) => `<span>${esc(c)}</span>`).join('')}</div>`;
 }
 
-function setRow(s, i, entry, ctx, track, last) {
+function setRow(s, i, entry, ctx, track, last, rpeOn) {
   const unit = getSettings().unit;
   const prevSet = last?.entry.sets.filter((x) => x.done)[i] || null;
   const prevText = prevSet
@@ -415,13 +419,13 @@ function setRow(s, i, entry, ctx, track, last) {
   } else if (track === 'dur') {
     fields =
       numInput('sec', s.sec == null ? '' : fmtClock(s.sec), 'mm:ss', 'text') +
-      rpeSelect(s.rpe) +
+      (rpeOn ? rpeSelect(s.rpe) : '') +
       '<span class="spacer"></span>';
   } else {
     fields =
       numInput('w', fmtOptional(toDisplayWeight(s.w, unit), 2), track === 'br' ? '+0' : unit) +
       numInput('r', s.r, 'reps', 'numeric') +
-      rpeSelect(s.rpe);
+      (rpeOn ? rpeSelect(s.rpe) : '');
   }
 
   const row = node(`

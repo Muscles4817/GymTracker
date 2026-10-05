@@ -40,6 +40,8 @@ export function settingsView() {
           </select>
         </div>
         <p class="muted small">Scales the whole app, bars included. Your browser's own font-size setting still applies on top.</p>
+        <label class="check-row"><input type="checkbox" id="set-rpe" ${s.trackRpe ? 'checked' : ''}> Show an RPE column when logging</label>
+        <p class="muted small">RPE records how hard a set felt, 6 to 10, where 8 means you had about two reps left. Off by default to keep the row wide — sets that already have one still show it.</p>
       </section>
 
       <section class="card">
@@ -106,6 +108,7 @@ export function settingsView() {
     await saveSettings({ theme: ev.target.value });
     applyTheme(ev.target.value);
   });
+  el.querySelector('#set-rpe').addEventListener('change', (ev) => saveSettings({ trackRpe: ev.target.checked }));
   el.querySelector('#set-textsize').addEventListener('change', async (ev) => {
     const scale = Number(ev.target.value);
     applyTextScale(scale); // apply first so the change is visible while saving
