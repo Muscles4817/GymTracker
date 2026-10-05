@@ -362,6 +362,50 @@ async function main() {
   if (String(setsAfterWu) !== '2') fail('Warm-up exclusion', `working sets should drop to 2, got ${setsAfterWu}`);
   else ok('Warm-ups excluded from working sets');
 
+  // ------------------------------------------------------------- 5b. delete safety
+  const snapshotSets = `
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      return s.activeWorkout().entries[0].sets.map(x => [x.w, x.r, x.rpe, x.type, x.done]);
+    })()`;
+  const beforeDelete = await evaluate(snapshotSets, 'sets before delete');
+
+  await evaluate(`
+    document.querySelectorAll('.entry')[0]
+      .querySelectorAll('.set-row')[1]
+      .querySelector('[data-a="remove-set"]').click()`, 'delete logged set');
+  await sleep(350);
+  if (!(await evaluate("!!document.querySelector('.toast-action')", 'undo offered'))) {
+    fail('Undo offered', 'deleting a logged set gave no undo');
+  } else {
+    ok('Deleting a logged set offers Undo');
+  }
+
+  await evaluate("document.querySelector('.toast-action').click()", 'undo');
+  await sleep(450);
+  const afterUndo = await evaluate(snapshotSets, 'sets after undo');
+  if (JSON.stringify(afterUndo) !== JSON.stringify(beforeDelete)) {
+    fail('Undo restores the set', `got ${JSON.stringify(afterUndo)}, expected ${JSON.stringify(beforeDelete)}`);
+  } else {
+    ok('Undo restores the set in its original position', `${afterUndo.length} sets intact`);
+  }
+
+  // An unticked set is a draft — Add set prefills it back — so no offer.
+  await evaluate("document.querySelector('#toast-host').innerHTML = ''");
+  await evaluate(`document.querySelectorAll('.entry')[0].querySelector('[data-a="add-set"]').click()`);
+  await sleep(250);
+  await evaluate(`
+    (() => {
+      const rows = document.querySelectorAll('.entry')[0].querySelectorAll('.set-row');
+      rows[rows.length - 1].querySelector('[data-a="remove-set"]').click();
+    })()`, 'delete unticked set');
+  await sleep(350);
+  if (await evaluate("!!document.querySelector('.toast-action')", 'no undo for draft')) {
+    fail('Unticked set deletion', 'offered an undo for a set that was never ticked');
+  } else {
+    ok('Deleting an unticked set passes without an undo prompt');
+  }
+
   // ------------------------------------------------------------- 6. finish
   await evaluate('document.querySelector(\'[data-a="finish"]\').click()');
   await sleep(600);

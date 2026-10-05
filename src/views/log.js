@@ -352,16 +352,40 @@ function entryCard(entry, index, ctx) {
   });
 
   card.querySelector('[data-a="remove-entry"]').addEventListener('click', async () => {
-    const ok = await confirmDialog({
-      title: `Remove ${exerciseName(entry.exerciseId)}?`,
-      message: 'Its sets in this session will be deleted.',
-      confirmText: 'Remove',
-      danger: true,
+    const name = exerciseName(entry.exerciseId);
+    const logged = entry.sets.filter(isSetFilled).length;
+    // Only ask when there is something to lose, and say how much — a dialog
+    // that always appears stops being read.
+    if (logged) {
+      const ok = await confirmDialog({
+        title: `Remove ${name}?`,
+        message: `${plural(logged, 'logged set')} will be deleted from this session.`,
+        confirmText: 'Remove',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
+    const snapshot = structuredClone(entry);
+    let at = -1;
+    await ctx.mutate((w) => {
+      at = w.entries.findIndex((x) => x.id === entry.id);
+      if (at > -1) w.entries.splice(at, 1);
     });
-    if (!ok) return;
-    await ctx.mutate((w) => (w.entries = w.entries.filter((x) => x.id !== entry.id)));
     ctx.drawEntries();
     ctx.refreshStats();
+
+    toast(`${name} removed`, {
+      duration: 6000,
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          await ctx.mutate((w) => w.entries.splice(Math.min(at, w.entries.length), 0, snapshot));
+          ctx.drawEntries();
+          ctx.refreshStats();
+        },
+      },
+    });
   });
 
   return card;
@@ -507,12 +531,40 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
   });
 
   row.querySelector('[data-a="remove-set"]').addEventListener('click', async () => {
+    // Undo rather than a confirm: binning a spare set is routine, and a modal
+    // every time is what trains you to tap through the ones that matter.
+    //
+    // Only a ticked set, or one carrying a note, is worth offering it for.
+    // Add set prefills from your last set, so an unticked row is a draft that
+    // re-adding reproduces exactly — a prompt there would be noise.
+    const worthKeeping = s.done || !!s.note?.trim();
+    const snapshot = { ...s };
+    let at = -1;
     await ctx.mutate((w) => {
       const target = findEntry(w, entry.id);
-      if (target) target.sets = target.sets.filter((x) => x.id !== s.id);
+      if (!target) return;
+      at = target.sets.findIndex((x) => x.id === s.id);
+      if (at > -1) target.sets.splice(at, 1);
     });
     redrawSiblings(ctx, entry.id);
     ctx.refreshStats();
+    if (!worthKeeping || at < 0) return;
+
+    toast('Set removed', {
+      duration: 6000,
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          await ctx.mutate((w) => {
+            const target = findEntry(w, entry.id);
+            // Back where it was. Clamped, in case the list changed meanwhile.
+            if (target) target.sets.splice(Math.min(at, target.sets.length), 0, snapshot);
+          });
+          redrawSiblings(ctx, entry.id);
+          ctx.refreshStats();
+        },
+      },
+    });
   });
 
   return row;
