@@ -586,8 +586,22 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   text-align: center;
 }
 .set-head span:nth-child(2) { text-align: center; }
-.set-row { padding: 4px 0; border-top: 1px solid var(--border); }
-.set-row.is-done { background: color-mix(in srgb, var(--success-bg) 8%, transparent); }
+/* Two signals on two channels, so they never cancel each other out.
+
+   The fill alternates strictly by position, so consecutive sets are always
+   distinguishable — a done-state fill can't do that job, because a run of
+   completed sets then merges into one block with no boundaries.
+
+   The rail carries completion instead, and reads as a track filling in down
+   the side of the exercise as you work through it. */
+.set-rows { display: flex; flex-direction: column; gap: 4px; }
+.set-row {
+  padding: 7px 8px 7px 9px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--border);
+}
+.set-rows > .set-row:nth-child(even) { background: var(--surface-2); }
+.set-row.is-done { border-left-color: var(--success-bg); }
 .set-row .input { min-height: var(--tap); }
 .set-row .spacer { display: none; }
 
