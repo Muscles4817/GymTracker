@@ -64,8 +64,9 @@
      exception for tools that sit inside a dense set row. */
   --tap: 2.75rem;         /* 44px */
   --tap-sm: 2rem;         /* 32px */
-  --tab-h: 4rem;          /* 64px — was 58px, under M3's 80dp nav bar */
-  --bar-h: 3.5rem;        /* 56px app bar */
+  --tab-h: 4.75rem;       /* 76px — M3 puts the nav bar at 80dp; this is a gym
+                             app read at arm's length, so aim high, not minimum */
+  --bar-h: 3.75rem;       /* 60px app bar */
   /* note + done + delete, with 6px between each (Material's 8dp guidance) */
   --set-actions: calc(var(--tap) + var(--tap-sm) * 2 + 12px);
 }
@@ -195,7 +196,7 @@ a { color: inherit; text-decoration: none; }
 }
 .app-bar h1 { flex: 1; text-align: center; min-width: 0; }
 .app-bar > .icon-btn:first-child ~ h1 { text-align: center; }
-.app-bar .icon-btn .icon { width: 1.375rem; height: 1.375rem; }
+.app-bar .icon-btn .icon { width: 1.625rem; height: 1.625rem; }
 
 .content {
   max-width: 760px;
@@ -226,15 +227,15 @@ body.rest-active .content {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  font-size: var(--fs-micro);
+  gap: 4px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   /* --muted is only 3.4:1 on the light plane, and these are the smallest
      labels in the app. --text-secondary is 7.5:1. */
   color: var(--text-secondary);
   min-height: var(--tap);
 }
-.tab .icon { width: 1.5rem; height: 1.5rem; }
+.tab .icon { width: 1.75rem; height: 1.75rem; }
 .tab.is-active { color: var(--accent); }
 .tab-dot {
   position: absolute;
