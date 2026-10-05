@@ -442,7 +442,7 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
       <div class="set-end">
         <button class="icon-btn tiny ${s.note?.trim() ? 'has-note' : ''}" data-a="set-note" type="button" aria-label="Set note" title="${esc(s.note?.trim() || 'Add a note to this set')}">${icon('note')}</button>
         <button class="set-done" data-a="toggle-done" type="button" aria-pressed="${s.done}" aria-label="Mark set complete">${icon('check')}</button>
-        <button class="icon-btn tiny" data-a="remove-set" type="button" aria-label="Delete set">${icon('x')}</button>
+        <button class="icon-btn tiny danger" data-a="remove-set" type="button" aria-label="Delete set">${icon('x')}</button>
       </div>
     </div>`);
 

@@ -326,6 +326,7 @@ body.rest-active .content {
 .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .icon-btn.tiny { width: var(--tap-sm); height: var(--tap-sm); }
 .icon-btn.tiny .icon { width: 1rem; height: 1rem; }
+.icon-btn.danger { color: var(--danger); }
 .icon-btn.has-note { color: var(--series-2); }
 .muted-icon { color: var(--muted); }
 
@@ -641,10 +642,12 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   justify-content: center;
   width: var(--tap);
   height: var(--tap);
-  border: 1px solid var(--border);
+  /* Unticked reads as the inverse of ticked — a green mark waiting to be
+     filled in — rather than grey on grey, which looked disabled. */
+  border: 1.5px solid color-mix(in srgb, var(--success-bg) 45%, transparent);
   border-radius: 9px;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--surface-1);
+  color: var(--success-bg);
   cursor: pointer;
 }
 .set-row.is-done .set-done { background: var(--success-bg); border-color: var(--success-bg); color: var(--success-fg); }
