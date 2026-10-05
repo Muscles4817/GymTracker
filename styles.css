@@ -46,7 +46,28 @@
   --radius-sm: 9px;
   --shadow: 0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 8px rgba(11, 11, 11, 0.04);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --tab-h: 58px;
+
+  /* Type scale. Everything readable is rem, so the root size below — and with
+     it the user's browser preference and the in-app Text size control — moves
+     the whole app at once. 0.75rem is the floor; nothing gets smaller. */
+  --fs-micro: 0.75rem;    /* 12px — uppercase column labels, tab captions */
+  --fs-xs: 0.8125rem;     /* 13px — secondary/meta text */
+  --fs-sm: 0.875rem;      /* 14px */
+  --fs-md: 0.9375rem;     /* 15px */
+  --fs-base: 1rem;        /* 16px — body */
+  --fs-lg: 1.125rem;      /* 18px */
+  --fs-xl: 1.25rem;       /* 20px */
+  --fs-2xl: 1.375rem;     /* 22px */
+
+  /* Apple HIG puts the minimum tappable area at 44pt; Material asks 48dp with
+     8dp between neighbours. --tap is the floor, --tap-sm the deliberate
+     exception for tools that sit inside a dense set row. */
+  --tap: 2.75rem;         /* 44px */
+  --tap-sm: 2rem;         /* 32px */
+  --tab-h: 4rem;          /* 64px — was 58px, under M3's 80dp nav bar */
+  --bar-h: 3.5rem;        /* 56px app bar */
+  /* note + done + delete, with 6px between each (Material's 8dp guidance) */
+  --set-actions: calc(var(--tap) + var(--tap-sm) * 2 + 12px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -119,36 +140,43 @@
 
 html, body { height: 100%; }
 
+/* 100% = the browser's own default (usually 16px), so a reader who has raised
+   it system-wide gets a bigger app for free. --ui-scale is the in-app Text size
+   control on top of that. No text-size-adjust lock: on Android it would opt the
+   page out of the OS text-scaling slider. */
+html {
+  font-size: calc(100% * var(--ui-scale, 1));
+}
+
 body {
   margin: 0;
   font-family: var(--font);
-  font-size: 15px;
+  font-size: var(--fs-base);
   line-height: 1.45;
   background: var(--plane);
   color: var(--text-primary);
-  -webkit-text-size-adjust: 100%;
   overscroll-behavior-y: none;
 }
 
 h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
-h1 { font-size: 17px; }
-h2 { font-size: 19px; }
-h3 { font-size: 15px; }
+h1 { font-size: var(--fs-lg); }
+h2 { font-size: var(--fs-xl); }
+h3 { font-size: var(--fs-base); }
 p { margin: 0 0 8px; }
 p:last-child { margin-bottom: 0; }
 
 a { color: inherit; text-decoration: none; }
-.link { color: var(--accent); font-weight: 600; font-size: 13px; }
+.link { color: var(--accent); font-weight: 600; font-size: var(--fs-xs); }
 .link:hover { text-decoration: underline; }
 
 .muted { color: var(--text-secondary); }
-.small { font-size: 13px; }
+.small { font-size: var(--fs-xs); }
 .center { text-align: center; }
 .pad { padding: 16px; }
 .flip { transform: rotate(180deg); }
 .push-right { margin-left: auto; }
 
-.icon { width: 18px; height: 18px; flex: none; }
+.icon { width: 1.25rem; height: 1.25rem; flex: none; }
 
 /* ------------------------------------------------------------------ shell */
 
@@ -158,15 +186,16 @@ a { color: inherit; text-decoration: none; }
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: calc(50px + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) 10px 0;
+  gap: 4px;
+  height: calc(var(--bar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 6px 0;
   background: color-mix(in srgb, var(--plane) 88%, transparent);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
-.app-bar h1 { flex: 1; text-align: center; }
+.app-bar h1 { flex: 1; text-align: center; min-width: 0; }
 .app-bar > .icon-btn:first-child ~ h1 { text-align: center; }
+.app-bar .icon-btn .icon { width: 1.375rem; height: 1.375rem; }
 
 .content {
   max-width: 760px;
@@ -198,17 +227,19 @@ body.rest-active .content {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 600;
-  color: var(--muted);
-  min-height: 44px;
+  /* --muted is only 3.4:1 on the light plane, and these are the smallest
+     labels in the app. --text-secondary is 7.5:1. */
+  color: var(--text-secondary);
+  min-height: var(--tap);
 }
-.tab .icon { width: 21px; height: 21px; }
+.tab .icon { width: 1.5rem; height: 1.5rem; }
 .tab.is-active { color: var(--accent); }
 .tab-dot {
   position: absolute;
-  top: 7px;
-  left: calc(50% + 8px);
+  top: 0.5rem;
+  left: calc(50% + 0.625rem);
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -241,7 +272,7 @@ body.rest-active .content {
 .hero { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .hero .btn { width: 100%; }
 
-.detail-title { font-size: 20px; }
+.detail-title { font-size: var(--fs-2xl); }
 
 /* ------------------------------------------------------------------ buttons */
 
@@ -250,7 +281,7 @@ body.rest-active .content {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 42px;
+  min-height: var(--tap);
   padding: 0 15px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -275,15 +306,15 @@ body.rest-active .content {
 .btn-ghost { background: transparent; border-color: var(--border); }
 .btn-danger-text { color: var(--danger); }
 .btn-block { width: 100%; }
-.btn-lg { min-height: 50px; font-size: 16px; }
-.btn-sm { min-height: 34px; padding: 0 11px; font-size: 13px; }
+.btn-lg { min-height: 3.25rem; font-size: var(--fs-lg); }
+.btn-sm { min-height: 2.25rem; padding: 0 11px; font-size: var(--fs-xs); }
 
 .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: var(--tap);
+  height: var(--tap);
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -292,8 +323,8 @@ body.rest-active .content {
 }
 .icon-btn:hover { background: var(--surface-2); }
 .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.icon-btn.tiny { width: 30px; height: 30px; }
-.icon-btn.tiny .icon { width: 15px; height: 15px; }
+.icon-btn.tiny { width: var(--tap-sm); height: var(--tap-sm); }
+.icon-btn.tiny .icon { width: 1rem; height: 1rem; }
 .icon-btn.has-note { color: var(--series-2); }
 .muted-icon { color: var(--muted); }
 
@@ -305,18 +336,20 @@ body.rest-active .content {
 
 .input {
   width: 100%;
-  min-height: 42px;
+  min-height: var(--tap);
   padding: 9px 11px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-primary);
   font: inherit;
-  font-size: 16px; /* keeps iOS from zooming on focus */
+  /* iOS zooms the viewport on any form control under 16px. The max() keeps
+     that floor even if --ui-scale is ever taken below 1. */
+  font-size: max(16px, var(--fs-base));
 }
-textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
+textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 .input::placeholder { color: var(--muted); }
-.input.num { text-align: center; padding: 9px 4px; font-variant-numeric: tabular-nums; }
+.input.num { text-align: center; padding: 9px 6px; font-variant-numeric: tabular-nums; }
 
 .title-input {
   width: 100%;
@@ -326,7 +359,7 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   background: transparent;
   color: var(--text-primary);
   font: inherit;
-  font-size: 19px;
+  font-size: max(16px, var(--fs-xl));
   font-weight: 650;
   margin-bottom: 12px;
 }
@@ -336,7 +369,7 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .field-label, .field > span {
   display: block;
   margin-bottom: 5px;
-  font-size: 13px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -347,17 +380,18 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   gap: 12px;
   padding: 7px 0;
 }
-.setting label { font-weight: 600; font-size: 14px; }
-.setting .input { max-width: 210px; }
+.setting label { font-weight: 600; font-size: var(--fs-sm); }
+.setting .input { max-width: 13rem; }
 .check-row {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   padding: 8px 0;
-  font-size: 14px;
+  min-height: var(--tap);
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
-.check-row input { width: 19px; height: 19px; accent-color: var(--accent); }
+.check-row input { width: 1.375rem; height: 1.375rem; flex: none; accent-color: var(--accent); }
 
 .search-row { position: relative; }
 .search-icon {
@@ -368,34 +402,34 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   color: var(--muted);
   pointer-events: none;
 }
-.search-input { padding-left: 37px; }
+.search-input { padding-left: 2.6rem; }
 
 .filters { margin-top: 10px; }
 .filters summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--accent);
-  padding: 5px 0;
+  padding: 9px 0;
 }
-.chip-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
 .chip-label {
   width: 100%;
-  font-size: 12px;
+  font-size: var(--fs-micro);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
 }
 .chip {
-  min-height: 32px;
-  padding: 0 11px;
+  min-height: 2.25rem;
+  padding: 0 13px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -414,7 +448,7 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .stat-row {
   display: grid;
   /* auto-fit so three or four tiles both land on one tidy row */
-  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(5.25rem, 1fr));
   gap: 8px;
   margin: 10px 0;
 }
@@ -428,43 +462,94 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   border-radius: var(--radius-sm);
   text-align: center;
 }
-.stat-value { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
-.stat-label { font-size: 11px; color: var(--text-secondary); }
+.stat-value { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+.stat-label { font-size: var(--fs-micro); color: var(--text-secondary); }
 
 /* ------------------------------------------------------------------ entries / sets */
 
 .entry-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .entry-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.entry-name { font-weight: 650; font-size: 15px; }
+.entry-name { font-weight: 650; font-size: var(--fs-base); }
 .entry-name:hover { color: var(--accent); }
-.entry-sub { font-size: 12px; color: var(--text-secondary); }
-.entry-tools { display: flex; gap: 1px; flex: none; }
+.entry-sub { font-size: var(--fs-xs); color: var(--text-secondary); }
+/* 8dp between neighbouring targets (Material) — these sit next to a delete. */
+.entry-tools { display: flex; gap: 6px; flex: none; }
 .entry-note {
   margin: 8px 0 0;
   padding: 8px 10px;
   background: var(--surface-2);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: var(--fs-xs);
   color: var(--text-secondary);
   white-space: pre-wrap;
 }
 
-.set-table { margin-top: 10px; }
+/* The set row is the densest thing in the app and the two inputs in the middle
+   are the most-tapped controls, so they get the flexible space and everything
+   else is held to a fixed minimum. A container query — not a media query — so
+   the row also reflows when the Text size setting grows the rem. */
+/* overflow-x is the safety net for the extreme combination (a 320px phone at
+   the largest Text size): the row scrolls inside the card rather than spilling
+   its buttons off the edge. */
+.set-table { margin-top: 10px; container-type: inline-size; overflow-x: auto; }
 .set-head, .set-row {
   display: grid;
-  grid-template-columns: 34px 46px 1fr 1fr 62px 96px;
-  gap: 5px;
+  grid-template-columns: var(--tap-sm) 3rem minmax(3.75rem, 1fr) minmax(3.75rem, 1fr) 3.75rem var(--set-actions);
+  gap: 6px;
   align-items: center;
 }
 .set-table[data-track="dur"] .set-head,
 .set-table[data-track="dur"] .set-row,
 .set-table[data-track="cardio"] .set-head,
 .set-table[data-track="cardio"] .set-row {
-  grid-template-columns: 34px 46px 1fr 1fr 0 96px;
+  grid-template-columns: var(--tap-sm) 3rem minmax(3.75rem, 1fr) minmax(3.75rem, 1fr) var(--set-actions);
+}
+/* The header has no cell for the actions column, so that column must be a
+   fixed width — left as `auto` it collapses to zero in the header, the free
+   space lands in the 1fr columns, and the labels drift off their inputs. */
+.set-head span:empty { display: none; }
+.set-end { grid-column: -2 / -1; }
+
+/* Tight row: "last session" is reference, not input, so it drops to its own
+   line under the fields rather than competing with them for width. */
+@container (max-width: 26rem) {
+  .set-head > span:nth-child(2) { display: none; }
+  .set-head, .set-row {
+    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem var(--set-actions);
+  }
+  .set-table[data-track="dur"] .set-head,
+  .set-table[data-track="dur"] .set-row,
+  .set-table[data-track="cardio"] .set-head,
+  .set-table[data-track="cardio"] .set-row {
+    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
+  }
+  .set-row > * { grid-row: 1; }
+  .set-row > .prev { grid-row: 2; grid-column: 2 / -1; text-align: left; }
+  .set-row > .prev:not(:empty)::before { content: "Last: "; }
+}
+
+/* Tighter still — a small phone, or a large Text size. The fields alone keep
+   the first line; "last session" and the row's buttons share the second. */
+@container (max-width: 22rem) {
+  .set-head, .set-row {
+    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem;
+  }
+  .set-table[data-track="dur"] .set-head,
+  .set-table[data-track="dur"] .set-row,
+  .set-table[data-track="cardio"] .set-head,
+  .set-table[data-track="cardio"] .set-row {
+    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
+  }
+  /* Both span row 2; the padding on .prev keeps its text clear of the buttons. */
+  .set-row > .prev {
+    grid-column: 1 / -1;
+    padding-right: calc(var(--set-actions) + 8px);
+  }
+  .set-row > .set-end { grid-row: 2; grid-column: 1 / -1; justify-self: end; }
 }
 .set-head {
   padding: 0 0 5px;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -474,18 +559,18 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .set-head span:nth-child(2) { text-align: center; }
 .set-row { padding: 4px 0; border-top: 1px solid var(--border); }
 .set-row.is-done { background: color-mix(in srgb, var(--success-bg) 8%, transparent); }
-.set-row .input { min-height: 40px; }
+.set-row .input { min-height: var(--tap); }
 .set-row .spacer { display: none; }
 
 .set-type {
-  width: 32px;
-  height: 32px;
+  width: var(--tap-sm);
+  height: var(--tap-sm);
   border: 1px solid var(--border);
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--text-secondary);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   cursor: pointer;
 }
@@ -494,23 +579,25 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .set-type.st-f { background: color-mix(in srgb, var(--st-f) 18%, transparent); color: var(--st-f); border-color: transparent; }
 
 .prev {
-  font-size: 12px;
-  color: var(--muted);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
   text-align: center;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rpe { padding: 9px 2px; text-align: center; font-size: 14px; }
+/* Was 14px, which overrode .input's 16px and made iOS zoom the viewport
+   every time this select was tapped mid-workout. */
+.rpe { padding: 9px 4px; text-align: center; font-size: max(16px, var(--fs-base)); }
 
-.set-end { display: flex; align-items: center; justify-content: flex-end; gap: 1px; }
+.set-end { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .set-done {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: var(--tap);
+  height: var(--tap);
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface-2);
@@ -528,15 +615,15 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   gap: 7px;
   padding: 7px 0;
   border-top: 1px solid var(--border);
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 .set-main { font-weight: 600; font-variant-numeric: tabular-nums; }
-.set-note { width: 100%; font-size: 12px; color: var(--text-secondary); }
+.set-note { width: 100%; font-size: var(--fs-xs); color: var(--text-secondary); }
 .tag {
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--surface-2);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -558,7 +645,7 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .mini-list li:first-child a, .history-list li:first-child .history-row { border-top: 0; }
 .mini-list a:hover, .history-row:hover, .lib-row:hover, .picker-row:hover { background: var(--surface-2); }
 .mini-name, .history-name { font-weight: 600; display: block; }
-.mini-meta, .history-meta { font-size: 12.5px; color: var(--text-secondary); display: block; }
+.mini-meta, .history-meta { font-size: var(--fs-xs); color: var(--text-secondary); display: block; }
 .history-main, .picker-main { min-width: 0; flex: 1; }
 .history-meta, .picker-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -596,7 +683,7 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   cursor: pointer;
 }
 .routine-name { font-weight: 650; }
-.routine-meta { font-size: 12px; color: var(--text-secondary); }
+.routine-meta { font-size: var(--fs-xs); color: var(--text-secondary); }
 
 .routine-item { padding: 11px 0; border-top: 1px solid var(--border); }
 .routine-item:first-child { border-top: 0; }
@@ -604,18 +691,18 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .routine-item-name { font-weight: 600; }
 .routine-targets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
 .routine-targets label { display: flex; flex-direction: column; gap: 3px; }
-.routine-targets span { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); text-align: center; }
+.routine-targets span { font-size: var(--fs-micro); font-weight: 700; text-transform: uppercase; color: var(--text-secondary); text-align: center; }
 
 .lib-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-top: 1px solid var(--border); }
 .lib-list .lib-row:first-child { border-top: 0; }
 .picker-name { font-weight: 600; display: block; }
-.picker-sub { font-size: 12.5px; color: var(--text-secondary); display: block; }
+.picker-sub { font-size: var(--fs-xs); color: var(--text-secondary); display: block; }
 
 /* ------------------------------------------------------------------ empty */
 
 .empty { padding: 30px 18px; text-align: center; color: var(--text-secondary); }
 .empty-icon { display: inline-flex; padding: 12px; border-radius: 50%; background: var(--surface-2); color: var(--muted); margin-bottom: 10px; }
-.empty-icon .icon { width: 24px; height: 24px; }
+.empty-icon .icon { width: 1.5rem; height: 1.5rem; }
 .empty h3 { margin-bottom: 5px; color: var(--text-primary); }
 .empty .btn { margin-top: 12px; }
 
@@ -623,17 +710,19 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 
 .chart-card { overflow: hidden; }
 .chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
-.chart-title { font-size: 14.5px; }
-.chart-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--text-secondary); }
-.chart-note { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.chart-title { font-size: var(--fs-md); }
+.chart-sub { margin: 2px 0 0; font-size: var(--fs-xs); color: var(--text-secondary); }
+.chart-note { margin-top: 6px; font-size: var(--fs-xs); color: var(--text-secondary); }
 .chart-plot { position: relative; overflow-x: auto; }
 .chart { display: block; max-width: 100%; touch-action: pan-y; }
 
 .grid { stroke: var(--grid); stroke-width: 1; }
 .axis { stroke: var(--axis); stroke-width: 1; }
-.ax { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.row-label { font-size: 12px; }
-.direct { fill: var(--text-primary); font-size: 12px; font-weight: 650; }
+/* Chart text stays in px on purpose: charts.js lays the SVG out in fixed pixel
+   geometry, so rem-scaling the labels here would collide with the plot. */
+.ax { fill: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.row-label { font-size: 13px; }
+.direct { fill: var(--text-primary); font-size: 13px; font-weight: 650; }
 .bar { fill: var(--series-1); }
 .line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .pt { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
@@ -656,16 +745,16 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   border-radius: 9px;
   background: var(--surface-1);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   line-height: 1.4;
   pointer-events: none;
 }
 .chart-share { margin-top: 10px; width: 100%; }
 
 .chart-table { overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
 .data-table th, .data-table td { padding: 6px 9px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.data-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.data-table th { font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
 .data-table td { font-variant-numeric: tabular-nums; }
 
 /* ------------------------------------------------------------------ rest bar */
@@ -700,22 +789,22 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   margin: 0 auto;
   padding: 7px 12px;
 }
-.rest-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rest-clock { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; margin-left: auto; }
+.rest-label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rest-clock { font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; margin-left: auto; }
 .rest-buttons { display: flex; gap: 4px; }
 .rest-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  height: 34px;
+  min-width: var(--tap);
+  height: 2.5rem;
   padding: 0 8px;
   border: 0;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.2);
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -745,8 +834,8 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   border-radius: var(--radius);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
 }
-.modal-title { font-size: 17px; margin-bottom: 8px; }
-.modal-body { color: var(--text-secondary); font-size: 14px; }
+.modal-title { font-size: var(--fs-lg); margin-bottom: 8px; }
+.modal-body { color: var(--text-secondary); font-size: var(--fs-sm); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .modal-actions .btn { flex: 1; }
 
@@ -801,7 +890,7 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .picker-foot { display: flex; gap: 8px; }
 .picker-foot .btn { flex: 1; }
 
-.share-preview { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; white-space: pre; overflow-x: auto; }
+.share-preview { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: var(--fs-xs); white-space: pre; overflow-x: auto; }
 .share-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 
 /* ------------------------------------------------------------------ toast */
@@ -823,7 +912,7 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
   border-radius: var(--radius-sm);
   background: var(--text-primary);
   color: var(--plane);
-  font-size: 14px;
+  font-size: var(--fs-sm);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
   pointer-events: auto;
   animation: toast-in 180ms ease-out;
@@ -841,13 +930,14 @@ textarea.input { min-height: 70px; resize: vertical; line-height: 1.45; }
 .toast-warn { background: var(--danger); color: #fff; }
 
 .fatal { max-width: 520px; margin: 60px auto; padding: 20px; }
-.fatal pre { white-space: pre-wrap; color: var(--danger); font-size: 13px; }
+.fatal pre { white-space: pre-wrap; color: var(--danger); font-size: var(--fs-xs); }
 
 /* ------------------------------------------------------------------ wider screens */
 
 @media (min-width: 720px) {
-  body { font-size: 15.5px; }
-  .set-head, .set-row { grid-template-columns: 38px 62px 1fr 1fr 74px 106px; gap: 8px; }
+  body { font-size: 1.0625rem; }
+  /* The set row now reflows off its own container width, so it needs no
+     width-based override here. */
   .content { padding-bottom: calc(var(--tab-h) + 100px); }
 }
 

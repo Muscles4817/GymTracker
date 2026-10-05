@@ -7,7 +7,7 @@ import {
 import { workoutsToCsv, downloadBlob } from '../share.js';
 import { node, esc, icon, toast, confirmDialog, promptDialog } from '../ui.js';
 import { dayKey, fmtDateFull } from '../util.js';
-import { applyTheme } from '../theme.js';
+import { applyTheme, applyTextScale, TEXT_SCALES } from '../theme.js';
 
 export function settingsView() {
   const s = getSettings();
@@ -31,6 +31,15 @@ export function settingsView() {
             <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dark</option>
           </select>
         </div>
+        <div class="setting">
+          <label for="set-textsize">Text size</label>
+          <select class="input" id="set-textsize">
+            ${TEXT_SCALES.map(
+              (t) => `<option value="${t.value}" ${Number(s.textScale ?? 1) === t.value ? 'selected' : ''}>${esc(t.label)}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <p class="muted small">Scales the whole app, bars included. Your browser's own font-size setting still applies on top.</p>
       </section>
 
       <section class="card">
@@ -96,6 +105,11 @@ export function settingsView() {
   el.querySelector('#set-theme').addEventListener('change', async (ev) => {
     await saveSettings({ theme: ev.target.value });
     applyTheme(ev.target.value);
+  });
+  el.querySelector('#set-textsize').addEventListener('change', async (ev) => {
+    const scale = Number(ev.target.value);
+    applyTextScale(scale); // apply first so the change is visible while saving
+    await saveSettings({ textScale: scale });
   });
 
   // ---- rest timer

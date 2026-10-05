@@ -1,7 +1,7 @@
 // App shell: hash router, tab bar, rest-timer bar, install & backup nudges.
 
 import { init, getSettings, activeWorkout, subscribe, completedWorkouts } from './store.js';
-import { applyTheme } from './theme.js';
+import { applyTheme, applyTextScale } from './theme.js';
 import { node, icon, esc, toast, $ } from './ui.js';
 import { fmtClock } from './util.js';
 import {
@@ -221,6 +221,7 @@ async function boot() {
   }
 
   applyTheme(getSettings().theme);
+  applyTextScale(getSettings().textScale);
   mountShell();
   mountRestBar();
 
