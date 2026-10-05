@@ -28,10 +28,19 @@
       "detail": "Also binds your LAN address so you can open the app on your phone."
     },
     {
+      "label": "GymTracker: unit tests",
+      "type": "shell",
+      "command": "node --test \"test/**/*.test.mjs\"",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "detail": "The pure logic in util.js and store.js. No browser, runs in a fraction of a second."
+    },
+    {
       "label": "GymTracker: smoke test",
       "type": "shell",
       "command": "node tools/smoke-test.mjs",
-      "group": { "kind": "test", "isDefault": true },
+      "group": "test",
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "detail": "Drives the whole app in headless Chrome. Fails on any console error."
