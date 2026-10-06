@@ -4,7 +4,7 @@ import {
   activeWorkout, startWorkout, startFromRoutine, updateWorkout, finishWorkout,
   deleteWorkout, workoutById, newSet, newEntry, exerciseById, exerciseName,
   workoutVolume, workingSets, workoutDuration, lastPerformance, allRoutines,
-  completedWorkouts, getSettings, isSetFilled,
+  completedWorkouts, getSettings, isSetFilled, showsRpe,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import {
@@ -275,6 +275,9 @@ function entryCard(entry, index, ctx) {
   const track = ex?.track || 'wr';
   const unit = getSettings().unit;
   const last = lastPerformance(entry.exerciseId, ctx.id);
+  // Cardio has no RPE field at all; otherwise it's the setting, unless this
+  // entry already carries one.
+  const rpeOn = track !== 'cardio' && showsRpe(entry, getSettings().trackRpe);
 
   const card = node(`
     <section class="card entry" data-entry="${esc(entry.id)}">
@@ -286,12 +289,12 @@ function entryCard(entry, index, ctx) {
         <div class="entry-tools">
           <button class="icon-btn" data-a="entry-note" title="Exercise note" aria-label="Exercise note">${icon('note')}</button>
           <button class="icon-btn" data-a="move-up" title="Move up" aria-label="Move up" ${index === 0 ? 'disabled' : ''}>${icon('chevronDown', 'flip')}</button>
-          <button class="icon-btn" data-a="remove-entry" title="Remove exercise" aria-label="Remove exercise">${icon('trash')}</button>
+          <button class="icon-btn danger" data-a="remove-entry" title="Remove exercise" aria-label="Remove exercise">${icon('trash')}</button>
         </div>
       </header>
       ${entry.notes?.trim() ? `<p class="entry-note">${esc(entry.notes.trim())}</p>` : ''}
-      <div class="set-table" data-track="${track}">
-        ${setHeader(track, unit)}
+      <div class="set-table" data-track="${track}" data-rpe="${rpeOn ? 'on' : 'off'}">
+        ${setHeader(track, unit, rpeOn)}
         <div class="set-rows"></div>
       </div>
       <button class="btn btn-ghost btn-sm add-set" data-a="add-set" type="button">${icon('plus')} Add set</button>
@@ -303,7 +306,13 @@ function entryCard(entry, index, ctx) {
     const e = findEntry(ctx.current(), entry.id);
     if (!e) return;
     rowsEl.innerHTML = '';
-    e.sets.forEach((s, i) => rowsEl.appendChild(setRow(s, i, e, ctx, track, last)));
+    // The first set still outstanding is the one you're about to do.
+    const nextUp = e.sets.findIndex((x) => !x.done);
+    e.sets.forEach((s, i) => {
+      const el = setRow(s, i, e, ctx, track, last, rpeOn);
+      if (i === nextUp) el.classList.add('is-next');
+      rowsEl.appendChild(el);
+    });
   };
   drawRows();
 
@@ -343,16 +352,40 @@ function entryCard(entry, index, ctx) {
   });
 
   card.querySelector('[data-a="remove-entry"]').addEventListener('click', async () => {
-    const ok = await confirmDialog({
-      title: `Remove ${exerciseName(entry.exerciseId)}?`,
-      message: 'Its sets in this session will be deleted.',
-      confirmText: 'Remove',
-      danger: true,
+    const name = exerciseName(entry.exerciseId);
+    const logged = entry.sets.filter(isSetFilled).length;
+    // Only ask when there is something to lose, and say how much — a dialog
+    // that always appears stops being read.
+    if (logged) {
+      const ok = await confirmDialog({
+        title: `Remove ${name}?`,
+        message: `${plural(logged, 'logged set')} will be deleted from this session.`,
+        confirmText: 'Remove',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
+    const snapshot = structuredClone(entry);
+    let at = -1;
+    await ctx.mutate((w) => {
+      at = w.entries.findIndex((x) => x.id === entry.id);
+      if (at > -1) w.entries.splice(at, 1);
     });
-    if (!ok) return;
-    await ctx.mutate((w) => (w.entries = w.entries.filter((x) => x.id !== entry.id)));
     ctx.drawEntries();
     ctx.refreshStats();
+
+    toast(`${name} removed`, {
+      duration: 6000,
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          await ctx.mutate((w) => w.entries.splice(Math.min(at, w.entries.length), 0, snapshot));
+          ctx.drawEntries();
+          ctx.refreshStats();
+        },
+      },
+    });
   });
 
   return card;
@@ -375,17 +408,18 @@ function lastSummary(last, unit, track) {
   return `Last (${relativeDay(last.day)}): ${parts.join(', ')}${more}`;
 }
 
-function setHeader(track, unit) {
+function setHeader(track, unit, rpeOn) {
+  const rpe = rpeOn ? ['RPE'] : [];
   const cols =
     track === 'cardio'
-      ? ['Set', 'Prev', distanceLabel(unit), 'Time', '', '']
+      ? ['Set', 'Prev', distanceLabel(unit), 'Time']
       : track === 'dur'
-        ? ['Set', 'Prev', 'Time', 'RPE', '', '']
-        : ['Set', 'Prev', unit, 'Reps', 'RPE', ''];
+        ? ['Set', 'Prev', 'Time', ...rpe]
+        : ['Set', 'Prev', unit, 'Reps', ...rpe];
   return `<div class="set-head">${cols.map((c) => `<span>${esc(c)}</span>`).join('')}</div>`;
 }
 
-function setRow(s, i, entry, ctx, track, last) {
+function setRow(s, i, entry, ctx, track, last, rpeOn) {
   const unit = getSettings().unit;
   const prevSet = last?.entry.sets.filter((x) => x.done)[i] || null;
   const prevText = prevSet
@@ -415,13 +449,13 @@ function setRow(s, i, entry, ctx, track, last) {
   } else if (track === 'dur') {
     fields =
       numInput('sec', s.sec == null ? '' : fmtClock(s.sec), 'mm:ss', 'text') +
-      rpeSelect(s.rpe) +
+      (rpeOn ? rpeSelect(s.rpe) : '') +
       '<span class="spacer"></span>';
   } else {
     fields =
       numInput('w', fmtOptional(toDisplayWeight(s.w, unit), 2), track === 'br' ? '+0' : unit) +
       numInput('r', s.r, 'reps', 'numeric') +
-      rpeSelect(s.rpe);
+      (rpeOn ? rpeSelect(s.rpe) : '');
   }
 
   const row = node(`
@@ -432,7 +466,7 @@ function setRow(s, i, entry, ctx, track, last) {
       <div class="set-end">
         <button class="icon-btn tiny ${s.note?.trim() ? 'has-note' : ''}" data-a="set-note" type="button" aria-label="Set note" title="${esc(s.note?.trim() || 'Add a note to this set')}">${icon('note')}</button>
         <button class="set-done" data-a="toggle-done" type="button" aria-pressed="${s.done}" aria-label="Mark set complete">${icon('check')}</button>
-        <button class="icon-btn tiny" data-a="remove-set" type="button" aria-label="Delete set">${icon('x')}</button>
+        <button class="icon-btn tiny danger" data-a="remove-set" type="button" aria-label="Delete set">${icon('x')}</button>
       </div>
     </div>`);
 
@@ -497,12 +531,40 @@ function setRow(s, i, entry, ctx, track, last) {
   });
 
   row.querySelector('[data-a="remove-set"]').addEventListener('click', async () => {
+    // Undo rather than a confirm: binning a spare set is routine, and a modal
+    // every time is what trains you to tap through the ones that matter.
+    //
+    // Only a ticked set, or one carrying a note, is worth offering it for.
+    // Add set prefills from your last set, so an unticked row is a draft that
+    // re-adding reproduces exactly — a prompt there would be noise.
+    const worthKeeping = s.done || !!s.note?.trim();
+    const snapshot = { ...s };
+    let at = -1;
     await ctx.mutate((w) => {
       const target = findEntry(w, entry.id);
-      if (target) target.sets = target.sets.filter((x) => x.id !== s.id);
+      if (!target) return;
+      at = target.sets.findIndex((x) => x.id === s.id);
+      if (at > -1) target.sets.splice(at, 1);
     });
     redrawSiblings(ctx, entry.id);
     ctx.refreshStats();
+    if (!worthKeeping || at < 0) return;
+
+    toast('Set removed', {
+      duration: 6000,
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          await ctx.mutate((w) => {
+            const target = findEntry(w, entry.id);
+            // Back where it was. Clamped, in case the list changed meanwhile.
+            if (target) target.sets.splice(Math.min(at, target.sets.length), 0, snapshot);
+          });
+          redrawSiblings(ctx, entry.id);
+          ctx.refreshStats();
+        },
+      },
+    });
   });
 
   return row;

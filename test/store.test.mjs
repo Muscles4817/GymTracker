@@ -18,6 +18,7 @@ import {
   workoutReps,
   workoutDuration,
   routineFromWorkout,
+  showsRpe,
 } from '../src/store.js';
 
 /** A done working set, unless overridden. */
@@ -272,4 +273,27 @@ test('routineFromWorkout gives each item its own id', () => {
     'R'
   );
   assert.notEqual(r.items[0].id, r.items[1].id);
+});
+
+// ---------------------------------------------------------------- RPE column
+
+test('showsRpe follows the setting when nothing is logged', () => {
+  const e = entry('ex-1', [s(), s()]);
+  assert.equal(showsRpe(e, true), true);
+  assert.equal(showsRpe(e, false), false);
+});
+
+test('showsRpe keeps the column for an entry that already has one', () => {
+  const e = entry('ex-1', [s({ w: 60, r: 10 }), s({ w: 60, r: 8, rpe: 8.5 })]);
+  assert.equal(showsRpe(e, false), true);
+});
+
+test('showsRpe treats an RPE of zero as logged', () => {
+  assert.equal(showsRpe(entry('ex-1', [s({ rpe: 0 })]), false), true);
+});
+
+test('showsRpe is safe on a missing or empty entry', () => {
+  assert.equal(showsRpe(undefined, false), false);
+  assert.equal(showsRpe({ sets: [] }, false), false);
+  assert.equal(showsRpe(undefined, true), true);
 });

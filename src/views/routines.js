@@ -302,7 +302,7 @@ export function routineEditorView(id) {
   el.querySelector('[data-a="delete"]').addEventListener('click', async () => {
     const ok = await confirmDialog({
       title: `Delete “${current().name}”?`,
-      message: 'Workouts already logged from it are untouched.',
+      message: `The routine and its ${plural(current().items.length, 'exercise', 's')} are deleted. Workouts already logged from it are untouched.`,
       confirmText: 'Delete',
       danger: true,
     });

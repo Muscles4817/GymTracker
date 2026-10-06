@@ -64,8 +64,9 @@
      exception for tools that sit inside a dense set row. */
   --tap: 2.75rem;         /* 44px */
   --tap-sm: 2rem;         /* 32px */
-  --tab-h: 4rem;          /* 64px — was 58px, under M3's 80dp nav bar */
-  --bar-h: 3.5rem;        /* 56px app bar */
+  --tab-h: 4.75rem;       /* 76px — M3 puts the nav bar at 80dp; this is a gym
+                             app read at arm's length, so aim high, not minimum */
+  --bar-h: 3.75rem;       /* 60px app bar */
   /* note + done + delete, with 6px between each (Material's 8dp guidance) */
   --set-actions: calc(var(--tap) + var(--tap-sm) * 2 + 12px);
 }
@@ -195,7 +196,7 @@ a { color: inherit; text-decoration: none; }
 }
 .app-bar h1 { flex: 1; text-align: center; min-width: 0; }
 .app-bar > .icon-btn:first-child ~ h1 { text-align: center; }
-.app-bar .icon-btn .icon { width: 1.375rem; height: 1.375rem; }
+.app-bar .icon-btn .icon { width: 1.625rem; height: 1.625rem; }
 
 .content {
   max-width: 760px;
@@ -226,15 +227,15 @@ body.rest-active .content {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  font-size: var(--fs-micro);
+  gap: 4px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   /* --muted is only 3.4:1 on the light plane, and these are the smallest
      labels in the app. --text-secondary is 7.5:1. */
   color: var(--text-secondary);
   min-height: var(--tap);
 }
-.tab .icon { width: 1.5rem; height: 1.5rem; }
+.tab .icon { width: 1.75rem; height: 1.75rem; }
 .tab.is-active { color: var(--accent); }
 .tab-dot {
   position: absolute;
@@ -325,6 +326,7 @@ body.rest-active .content {
 .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .icon-btn.tiny { width: var(--tap-sm); height: var(--tap-sm); }
 .icon-btn.tiny .icon { width: 1rem; height: 1rem; }
+.icon-btn.danger { color: var(--danger); }
 .icon-btn.has-note { color: var(--series-2); }
 .muted-icon { color: var(--muted); }
 
@@ -484,17 +486,28 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   white-space: pre-wrap;
 }
 
-/* The set row is the densest thing in the app and the two inputs in the middle
-   are the most-tapped controls, so they get the flexible space and everything
-   else is held to a fixed minimum. A container query — not a media query — so
-   the row also reflows when the Text size setting grows the rem. */
-/* overflow-x is the safety net for the extreme combination (a 320px phone at
-   the largest Text size): the row scrolls inside the card rather than spilling
-   its buttons off the edge. */
+/* The set row is the densest thing in the app, and the two inputs in the
+   middle are the most-tapped controls, so the layout is built around giving
+   them as much width as exists.
+
+   Mobile-first and deliberately two-line: the button cluster is ~120px, and
+   carrying it on the field line costs more than any phone can spare. Keeping
+   the fields on their own line means width translates straight into input
+   size — 100px at 360, 132px at 428 — instead of being eaten by furniture.
+
+   Container queries, not media queries, so the row also reflows when the Text
+   size setting grows the rem rather than only when the viewport changes. */
 .set-table { margin-top: 10px; container-type: inline-size; overflow-x: auto; }
+
+/* The header has no cell for the actions column, so where that column exists
+   it must be a fixed width — left as `auto` it collapses to zero in the
+   header, the free space lands in the 1fr columns, and the labels drift off
+   the inputs they are labelling. */
+.set-head span:empty { display: none; }
+
 .set-head, .set-row {
   display: grid;
-  grid-template-columns: var(--tap-sm) 3rem minmax(3.75rem, 1fr) minmax(3.75rem, 1fr) 3.75rem var(--set-actions);
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem;
   gap: 6px;
   align-items: center;
 }
@@ -502,51 +515,68 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 .set-table[data-track="dur"] .set-row,
 .set-table[data-track="cardio"] .set-head,
 .set-table[data-track="cardio"] .set-row {
-  grid-template-columns: var(--tap-sm) 3rem minmax(3.75rem, 1fr) minmax(3.75rem, 1fr) var(--set-actions);
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
 }
-/* The header has no cell for the actions column, so that column must be a
-   fixed width — left as `auto` it collapses to zero in the header, the free
-   space lands in the 1fr columns, and the labels drift off their inputs. */
-.set-head span:empty { display: none; }
-.set-end { grid-column: -2 / -1; }
+/* RPE off: the column goes entirely, and the fields take the width back. */
+.set-table[data-rpe="off"] .set-head,
+.set-table[data-rpe="off"] .set-row {
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
+}
+.set-table[data-rpe="off"][data-track="dur"] .set-head,
+.set-table[data-rpe="off"][data-track="dur"] .set-row {
+  grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr);
+}
 
-/* Tight row: "last session" is reference, not input, so it drops to its own
-   line under the fields rather than competing with them for width. */
-@container (max-width: 26rem) {
-  .set-head > span:nth-child(2) { display: none; }
+/* "Last session" is reference, not input. It shares the second line with the
+   row buttons: both span the row, and the padding keeps the text clear of
+   them. */
+.set-head > span:nth-child(2) { display: none; }
+.set-row > * { grid-row: 1; }
+.set-row > .prev {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  text-align: left;
+  padding-right: calc(var(--set-actions) + 8px);
+}
+.set-row > .prev:not(:empty)::before { content: "Last: "; }
+.set-row > .set-end { grid-row: 2; grid-column: 1 / -1; justify-self: end; }
+
+/* One line only once there is genuinely room for it: enough for the buttons,
+   the previous-session column *and* inputs wider than the two-line layout was
+   giving. That lands around a small tablet; every phone keeps two lines. Going
+   single-line any earlier trades a lot of input width for a little height. */
+@container (min-width: 31rem) {
   .set-head, .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem var(--set-actions);
+    grid-template-columns:
+      var(--tap-sm) 3rem minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem var(--set-actions);
   }
   .set-table[data-track="dur"] .set-head,
   .set-table[data-track="dur"] .set-row,
   .set-table[data-track="cardio"] .set-head,
   .set-table[data-track="cardio"] .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
+    grid-template-columns:
+      var(--tap-sm) 3rem minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
   }
-  .set-row > * { grid-row: 1; }
-  .set-row > .prev { grid-row: 2; grid-column: 2 / -1; text-align: left; }
-  .set-row > .prev:not(:empty)::before { content: "Last: "; }
-}
-
-/* Tighter still — a small phone, or a large Text size. The fields alone keep
-   the first line; "last session" and the row's buttons share the second. */
-@container (max-width: 22rem) {
-  .set-head, .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) 3.5rem;
+  .set-table[data-rpe="off"] .set-head,
+  .set-table[data-rpe="off"] .set-row {
+    grid-template-columns:
+      var(--tap-sm) 3rem minmax(3.5rem, 1fr) minmax(3.5rem, 1fr) var(--set-actions);
   }
-  .set-table[data-track="dur"] .set-head,
-  .set-table[data-track="dur"] .set-row,
-  .set-table[data-track="cardio"] .set-head,
-  .set-table[data-track="cardio"] .set-row {
-    grid-template-columns: var(--tap-sm) minmax(3.5rem, 1fr) minmax(3.5rem, 1fr);
+  .set-table[data-rpe="off"][data-track="dur"] .set-head,
+  .set-table[data-rpe="off"][data-track="dur"] .set-row {
+    grid-template-columns: var(--tap-sm) 3rem minmax(3.5rem, 1fr) var(--set-actions);
   }
-  /* Both span row 2; the padding on .prev keeps its text clear of the buttons. */
+  .set-head > span:nth-child(2) { display: revert; }
   .set-row > .prev {
-    grid-column: 1 / -1;
-    padding-right: calc(var(--set-actions) + 8px);
+    grid-row: 1;
+    grid-column: 2;
+    text-align: center;
+    padding-right: 0;
   }
-  .set-row > .set-end { grid-row: 2; grid-column: 1 / -1; justify-self: end; }
+  .set-row > .prev:not(:empty)::before { content: none; }
+  .set-row > .set-end { grid-row: 1; grid-column: -2 / -1; justify-self: stretch; }
 }
+
 .set-head {
   padding: 0 0 5px;
   font-size: var(--fs-micro);
@@ -557,8 +587,22 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   text-align: center;
 }
 .set-head span:nth-child(2) { text-align: center; }
-.set-row { padding: 4px 0; border-top: 1px solid var(--border); }
-.set-row.is-done { background: color-mix(in srgb, var(--success-bg) 8%, transparent); }
+/* Two signals, two jobs — and neither is "the same thing twice".
+
+   Every set is a filled block with a gap, so adjacent sets are always
+   separated whatever their state. The fill says what is finished. The rail
+   says where you are: it marks the next set you haven't done, which is the
+   question you're actually asking when you glance at this mid-exercise. */
+.set-rows { display: flex; flex-direction: column; gap: 5px; }
+.set-row {
+  padding: 7px 8px 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border-left: 3px solid transparent;
+}
+.set-row.is-done { background: color-mix(in srgb, var(--success-bg) 12%, transparent); }
+.set-row.is-next { border-left-color: var(--accent); }
+
 .set-row .input { min-height: var(--tap); }
 .set-row .spacer { display: none; }
 
@@ -598,10 +642,12 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   justify-content: center;
   width: var(--tap);
   height: var(--tap);
-  border: 1px solid var(--border);
+  /* Unticked reads as the inverse of ticked — a green mark waiting to be
+     filled in — rather than grey on grey, which looked disabled. */
+  border: 1.5px solid color-mix(in srgb, var(--success-bg) 45%, transparent);
   border-radius: 9px;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--surface-1);
+  color: var(--success-bg);
   cursor: pointer;
 }
 .set-row.is-done .set-done { background: var(--success-bg); border-color: var(--success-bg); color: var(--success-fg); }
@@ -809,6 +855,58 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   cursor: pointer;
 }
 .rest-btn:hover { background: rgba(255, 255, 255, 0.32); }
+
+/* ------------------------------------------------------------ resume bar */
+
+/* Sits in the same slot as the rest bar, and never at the same time, so the
+   two never stack on top of the tab bar. */
+.resume-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
+  z-index: 44;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 9px 14px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+}
+.resume-icon { display: inline-flex; color: var(--accent); flex: none; }
+.resume-icon .icon { width: 1.5rem; height: 1.5rem; }
+.resume-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.resume-name {
+  font-weight: 650;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resume-meta { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.resume-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  min-height: var(--tap);
+  padding-left: 6px;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+.resume-go .icon { width: 1.125rem; height: 1.125rem; }
+
+/* The bar floats over the page, so the page needs room under it. */
+body.resume-active .content {
+  padding-bottom: calc(var(--tab-h) + 92px + 3.5rem + env(safe-area-inset-bottom));
+}
+
+.rest-label { cursor: pointer; }
 
 /* ------------------------------------------------------------------ overlays */
 

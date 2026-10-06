@@ -283,6 +283,38 @@ async function main() {
         return 'ok';
       })()`);
 
+  // RPE is opt-in now. Check it is absent by default, then turn it on, because
+  // the share text and the timed-exercise row below both exercise it.
+  const rpeDefault = await evaluate(`
+    (() => {
+      const t = document.querySelector('.set-table');
+      return {
+        flag: t?.dataset.rpe,
+        select: !!t?.querySelector('.rpe'),
+        head: [...t.querySelectorAll('.set-head span')].map(x => x.textContent).filter(Boolean).join('|'),
+      };
+    })()`, 'rpe default');
+  if (rpeDefault.flag !== 'off' || rpeDefault.select) {
+    fail('RPE hidden by default', JSON.stringify(rpeDefault));
+  } else {
+    ok('RPE column hidden by default', rpeDefault.head);
+  }
+
+  await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      await s.saveSettings({ trackRpe: true });
+      location.hash = '#/history';
+    })()`, 'enable rpe');
+  await sleep(300);
+  await evaluate("location.hash = '#/log'");
+  await sleep(500);
+  if (!(await evaluate("!!document.querySelector('.set-table .rpe')", 'rpe on'))) {
+    fail('RPE column enabled', 'the select is still absent after turning the setting on');
+  } else {
+    ok('RPE column appears when the setting is on');
+  }
+
   await logSet(0, 0, 60, 10);
   await sleep(120);
   await evaluate('document.querySelectorAll(".entry")[0].querySelector(\'[data-a="toggle-done"]\').click()');
@@ -329,6 +361,84 @@ async function main() {
   const setsAfterWu = await evaluate('document.querySelector("[data-sets]").textContent');
   if (String(setsAfterWu) !== '2') fail('Warm-up exclusion', `working sets should drop to 2, got ${setsAfterWu}`);
   else ok('Warm-ups excluded from working sets');
+
+  // ------------------------------------------------------------- 5b. delete safety
+  const snapshotSets = `
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      return s.activeWorkout().entries[0].sets.map(x => [x.w, x.r, x.rpe, x.type, x.done]);
+    })()`;
+  const beforeDelete = await evaluate(snapshotSets, 'sets before delete');
+
+  await evaluate(`
+    document.querySelectorAll('.entry')[0]
+      .querySelectorAll('.set-row')[1]
+      .querySelector('[data-a="remove-set"]').click()`, 'delete logged set');
+  await sleep(350);
+  if (!(await evaluate("!!document.querySelector('.toast-action')", 'undo offered'))) {
+    fail('Undo offered', 'deleting a logged set gave no undo');
+  } else {
+    ok('Deleting a logged set offers Undo');
+  }
+
+  await evaluate("document.querySelector('.toast-action').click()", 'undo');
+  await sleep(450);
+  const afterUndo = await evaluate(snapshotSets, 'sets after undo');
+  if (JSON.stringify(afterUndo) !== JSON.stringify(beforeDelete)) {
+    fail('Undo restores the set', `got ${JSON.stringify(afterUndo)}, expected ${JSON.stringify(beforeDelete)}`);
+  } else {
+    ok('Undo restores the set in its original position', `${afterUndo.length} sets intact`);
+  }
+
+  // An unticked set is a draft — Add set prefills it back — so no offer.
+  await evaluate("document.querySelector('#toast-host').innerHTML = ''");
+  await evaluate(`document.querySelectorAll('.entry')[0].querySelector('[data-a="add-set"]').click()`);
+  await sleep(250);
+  await evaluate(`
+    (() => {
+      const rows = document.querySelectorAll('.entry')[0].querySelectorAll('.set-row');
+      rows[rows.length - 1].querySelector('[data-a="remove-set"]').click();
+    })()`, 'delete unticked set');
+  await sleep(350);
+  if (await evaluate("!!document.querySelector('.toast-action')", 'no undo for draft')) {
+    fail('Unticked set deletion', 'offered an undo for a set that was never ticked');
+  } else {
+    ok('Deleting an unticked set passes without an undo prompt');
+  }
+
+  // ------------------------------------------------------------- 5c. resume bar
+  // The rest bar owns this slot while it is up, so clear it first.
+  await evaluate(`
+    (async () => {
+      const t = await import(new URL('src/timer.js', location.href));
+      t.stopRest();
+    })()`, 'stop rest');
+  await sleep(250);
+
+  await evaluate("location.hash = '#/history'");
+  await sleep(600);
+  const resume = await evaluate(`
+    (() => {
+      const b = document.getElementById('resume-bar');
+      if (!b) return { missing: true };
+      return { hidden: b.hidden, name: b.querySelector('[data-resume-name]').textContent };
+    })()`, 'resume bar');
+  if (resume.missing || resume.hidden !== false) {
+    fail('Resume bar', `not shown off the Log screen with a workout running: ${JSON.stringify(resume)}`);
+  } else {
+    ok('Resume bar shows off the Log screen', resume.name);
+  }
+
+  await evaluate("document.getElementById('resume-bar').click()");
+  await sleep(600);
+  const landed = await evaluate('location.hash');
+  if (landed !== '#/log') {
+    fail('Resume bar tap', `landed on ${landed}, expected #/log`);
+  } else if (!(await evaluate("document.getElementById('resume-bar').hidden"))) {
+    fail('Resume bar on Log', 'still showing once back on the Log screen');
+  } else {
+    ok('Tapping it returns to the workout, and it stands down there');
+  }
 
   // ------------------------------------------------------------- 6. finish
   await evaluate('document.querySelector(\'[data-a="finish"]\').click()');
