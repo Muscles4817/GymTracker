@@ -19,6 +19,8 @@ import {
   workoutDuration,
   routineFromWorkout,
   showsRpe,
+  findRecords,
+  repMaxTable,
 } from '../src/store.js';
 
 /** A done working set, unless overridden. */
@@ -296,4 +298,77 @@ test('showsRpe is safe on a missing or empty entry', () => {
   assert.equal(showsRpe(undefined, false), false);
   assert.equal(showsRpe({ sets: [] }, false), false);
   assert.equal(showsRpe(undefined, true), true);
+});
+
+// ---------------------------------------------------------------- records
+
+const kindsOf = (prior, sets, track = 'wr') => [...findRecords(prior, sets, track).values()];
+
+test('findRecords: a first session sets no records', () => {
+  assert.equal(findRecords([], [s({ w: 100, r: 5 })], 'wr').size, 0);
+});
+
+test('findRecords: a heavier set than ever is a weight record', () => {
+  const rec = findRecords([s({ w: 80, r: 5 })], [s({ id: 'a', w: 82.5, r: 3 })], 'wr');
+  assert.deepEqual(rec.get('a'), ['weight']);
+});
+
+test('findRecords: more reps at the same or lighter weight is a rep record', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 80, r: 6 })]), [['reps']]);
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 70, r: 9 })]), [['reps']]);
+});
+
+test('findRecords: a set beaten by an earlier heavier-and-longer set is not a record', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 8 })], [s({ w: 70, r: 8 }), s({ w: 80, r: 8 })]), []);
+});
+
+test('findRecords: warm-ups neither claim nor set the bar', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 100, r: 5, type: 'wu' })]), []);
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 }), s({ w: 200, r: 5, type: 'wu' })], [s({ w: 90, r: 5 })]), [['weight']]);
+});
+
+test('findRecords: unticked sets are ignored', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 100, r: 5, done: false })]), []);
+});
+
+test('findRecords: drop sets do not claim rep records', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 40, r: 15, type: 'd' })]), []);
+});
+
+test('findRecords: the session raises its own bar as it goes', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 85, r: 5 }), s({ w: 85, r: 5 })]), [['weight']]);
+});
+
+test('findRecords: bodyweight reps count with no weight logged', () => {
+  assert.deepEqual(kindsOf([s({ r: 10 })], [s({ r: 12 })], 'br'), [['reps']]);
+  assert.deepEqual(kindsOf([s({ r: 10 })], [s({ w: 5, r: 6 })], 'br'), [['weight']]);
+});
+
+test('findRecords: holds and distances', () => {
+  assert.deepEqual(kindsOf([s({ sec: 60 })], [s({ sec: 75 })], 'dur'), [['hold']]);
+  assert.deepEqual(kindsOf([s({ dist: 5000 })], [s({ dist: 5200 })], 'cardio'), [['distance']]);
+  assert.deepEqual(kindsOf([s({ dist: 5000 })], [s({ dist: 5000 })], 'cardio'), []);
+});
+
+test('repMaxTable lists the heaviest weight for at least each rep count', () => {
+  const rows = repMaxTable([
+    s({ w: 100, r: 1, day: '2026-01-01' }),
+    s({ w: 90, r: 3, day: '2026-01-02' }),
+    s({ w: 80, r: 8, day: '2026-01-03' }),
+  ]);
+  assert.deepEqual(rows.map((r) => [r.reps, r.w]), [[1, 100], [3, 90], [8, 80]]);
+});
+
+test('repMaxTable drops a row a higher-rep set already proves', () => {
+  const rows = repMaxTable([s({ w: 90, r: 3, day: 'a' }), s({ w: 90, r: 5, day: 'b' })]);
+  assert.deepEqual(rows.map((r) => [r.reps, r.w]), [[5, 90]]);
+});
+
+test('repMaxTable keeps the first day a weight was reached', () => {
+  const rows = repMaxTable([s({ w: 90, r: 5, day: '2026-02-01' }), s({ w: 90, r: 5, day: '2026-01-01' })]);
+  assert.equal(rows[0].day, '2026-01-01');
+});
+
+test('repMaxTable ignores warm-ups and weightless sets', () => {
+  assert.deepEqual(repMaxTable([s({ w: 200, r: 1, type: 'wu', day: 'a' }), s({ r: 10, day: 'b' })]), []);
 });

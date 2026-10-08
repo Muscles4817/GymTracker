@@ -3,7 +3,7 @@
 import { MUSCLES, EQUIPMENT } from '../exercises.js';
 import {
   activeExercises, exerciseById, exerciseSeries, lastPerformance, getSettings,
-  deleteExercise,
+  deleteExercise, exerciseRecords,
 } from '../store.js';
 import { node, esc, icon, emptyState, toast, confirmDialog, on } from '../ui.js';
 import {
@@ -110,6 +110,28 @@ export function libraryView() {
 
 // ---------------------------------------------------------------- exercise detail
 
+function recordsCard(ex, unit) {
+  const rec = exerciseRecords(ex.id);
+  const row = (label, value, day) =>
+    `<li><span class="record-label">${esc(label)}</span><span class="record-value">${esc(value)}</span><span class="record-day">${esc(fmtDate(day, { day: 'numeric', month: 'short', year: '2-digit' }))}</span></li>`;
+  const rows = [];
+  if (ex.track === 'wr' || ex.track === 'br') {
+    rec.repMaxes.forEach((r) => rows.push(row(r.reps === 1 ? '1 rep' : `${r.reps} reps`, fmtWeight(r.w, unit), r.day)));
+    if (ex.track === 'br' && rec.maxReps) rows.push(row('Most reps', plural(rec.maxReps.r, 'rep'), rec.maxReps.day));
+  } else if (ex.track === 'dur' && rec.hold) {
+    rows.push(row('Longest hold', fmtDuration(rec.hold.sec), rec.hold.day));
+  } else if (ex.track === 'cardio' && rec.distance) {
+    rows.push(row('Longest distance', fmtDistance(rec.distance.dist, unit), rec.distance.day));
+  }
+  if (!rows.length) return null;
+  return node(`
+    <section class="card">
+      <header class="card-head"><h3>${icon('trophy', 'muted-icon')} Personal records</h3></header>
+      ${ex.track === 'wr' || ex.track === 'br' ? '<p class="muted small">Heaviest weight you have lifted for at least that many reps.</p>' : ''}
+      <ul class="record-list">${rows.join('')}</ul>
+    </section>`);
+}
+
 export function exerciseDetailView(id) {
   const ex = exerciseById(id);
   const el = node('<div class="view stack"></div>');
@@ -157,6 +179,9 @@ export function exerciseDetailView(id) {
       <button class="btn btn-whatsapp btn-block" data-a="share" type="button">${icon('whatsapp')} Share progress</button>
     </section>`)
   );
+
+  const records = recordsCard(ex, unit);
+  if (records) el.appendChild(records);
 
   if (!series.length) {
     el.appendChild(

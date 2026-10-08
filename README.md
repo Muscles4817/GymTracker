@@ -18,6 +18,9 @@ screen and works with the phone in airplane mode.
   chime and vibrate; it counts against a timestamp, so locking the phone mid-rest
   doesn't stall it
 - **Last-time reference** on every exercise and every set row, so you know what to beat
+- **Personal records** flagged the moment you tick the set — heaviest weight,
+  more reps than ever at a weight, longest hold or distance — and kept as a
+  rep-max table on each exercise's page
 - Add your own exercises; hide the machines your gym doesn't have
 
 **Routines**

@@ -667,6 +667,37 @@ ${timedRoundTrip}`);
     ok('Routine saved and started', `"${routine.name}", ${routine.entries} exercises, sets prefilled at 80 kg`);
   }
 
+  // Beat the bench's best through the real inputs: the set should be marked,
+  // and announced, the moment it is ticked.
+  await evaluate(`
+    (() => {
+      const row = document.querySelector('.entry .set-row');
+      const input = row.querySelector('[data-f="w"]');
+      input.value = String(parseFloat(input.value) + 10);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`, 'raise weight');
+  await sleep(300);
+  await evaluate("document.querySelector('.entry .set-row [data-a=\"toggle-done\"]').click()");
+  await sleep(400);
+  const pr = await evaluate(`({
+    marked: !!document.querySelector('.entry .set-row.is-pr'),
+    toast: document.querySelector('.toast-pr')?.textContent.trim() || null,
+  })`, 'pr');
+  if (!pr.marked || !pr.toast) {
+    fail('Personal record', JSON.stringify(pr));
+  } else {
+    ok('A heavier set is marked and announced as a PR', pr.toast);
+  }
+  await shot('personal-record');
+
+  await evaluate("location.hash = '#/exercise/barbell-bench-press'");
+  await waitFor('.view', 3000, 'exercise detail');
+  await sleep(300);
+  const recordRows = await evaluate("document.querySelectorAll('.record-list li').length");
+  if (!recordRows) fail('Records card', 'no rows on the bench press page');
+  else ok('Exercise page lists personal records', `${recordRows} rep-max row(s)`);
+  await shot('exercise-records');
+
   // With a session running, routines can be browsed but nothing offers to start.
   await evaluate('location.hash = "#/routines"');
   await waitFor('.running-notice', 5000, 'running notice on routines');

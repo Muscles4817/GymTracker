@@ -622,6 +622,23 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 .set-type.st-d { background: color-mix(in srgb, var(--st-d) 18%, transparent); color: var(--st-d); border-color: transparent; }
 .set-type.st-f { background: color-mix(in srgb, var(--st-f) 18%, transparent); color: var(--st-f); border-color: transparent; }
 
+/* A record keeps its set number and type colour, and wears a small gold tab
+   — the row's fill and rail already carry done and next. */
+.set-row.is-pr .set-type { position: relative; box-shadow: 0 0 0 2px var(--warning); }
+.set-row.is-pr .set-type::after {
+  content: "PR";
+  position: absolute;
+  top: -0.5rem;
+  right: -0.75rem;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--warning);
+  color: #0b0b0b;
+  font-size: 0.625rem;
+  font-weight: 800;
+  line-height: 1rem;
+}
+
 .prev {
   font-size: var(--fs-xs);
   color: var(--text-secondary);
@@ -676,6 +693,22 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 .tag.st-wu { color: var(--st-wu); }
 .tag.st-d { color: var(--st-d); }
 .tag.st-f { color: var(--st-f); }
+.tag-pr { display: inline-flex; align-items: center; gap: 3px; background: var(--warning); color: #0b0b0b; }
+.record-list { list-style: none; margin: 0; padding: 0; }
+.record-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.record-list li:first-child { border-top: 0; }
+.record-label { color: var(--text-secondary); font-size: var(--fs-sm); }
+.record-value { font-weight: 700; }
+.record-day { min-width: 4.5rem; text-align: right; color: var(--text-secondary); font-size: var(--fs-xs); }
+.tag-pr .icon { width: 0.875rem; height: 0.875rem; }
 
 /* ------------------------------------------------------------------ lists */
 
@@ -1084,6 +1117,7 @@ body.resume-active .content {
   cursor: pointer;
 }
 .toast-warn { background: var(--danger); color: #fff; }
+.toast-pr { background: var(--warning); color: #0b0b0b; font-weight: 650; }
 
 .fatal { max-width: 520px; margin: 60px auto; padding: 20px; }
 .fatal pre { white-space: pre-wrap; color: var(--danger); font-size: var(--fs-xs); }

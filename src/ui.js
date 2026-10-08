@@ -55,6 +55,7 @@ const ICONS = {
   flame: '<path d="M12 22c4 0 7-2.7 7-6.5 0-4.5-4-6-4-10.5 0 0-3 1.5-3 5 0 1.5-1 2-1.5 1.2C10 10 9.5 9 9.5 7.5 7 9.5 5 12 5 15.5 5 19.3 8 22 12 22Z"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
   bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8Z"/>',
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
 };
 
 export function icon(name, cls = '') {

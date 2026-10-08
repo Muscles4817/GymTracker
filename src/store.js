@@ -434,6 +434,114 @@ function currentStreakWeeks(done) {
   return streak;
 }
 
+// ---------------------------------------------------------------- records
+
+export const RECORD_LABELS = {
+  weight: 'Heaviest',
+  reps: 'Rep record',
+  hold: 'Longest hold',
+  distance: 'Longest distance',
+};
+
+const countsForRecords = (s) => s.done && s.type !== 'wu';
+
+/** Which of `sets` set a record, judged against `prior` and against the
+    session's own earlier sets. Returns Map<setId, kinds[]>.
+
+    Weighted work has two records: the heaviest load, and a rep record — more
+    reps than ever at that load or heavier, which is how strength shows up
+    between new maxes. Drop sets are light by design, so they never claim a
+    rep record. With no prior sets at all nothing counts: a first session is
+    a baseline, not a row of trophies. */
+export function findRecords(prior, sets, track) {
+  const out = new Map();
+  const pool = prior.filter(countsForRecords);
+  if (!pool.length) return out;
+  const max = (f) => pool.reduce((m, p) => Math.max(m, f(p) ?? -Infinity), -Infinity);
+
+  for (const s of sets) {
+    if (!countsForRecords(s)) continue;
+    const kinds = [];
+    if (track === 'wr' || track === 'br') {
+      // Bodyweight work logs added load only, so no weight means bodyweight.
+      const w = s.w ?? (track === 'br' ? 0 : null);
+      if (w != null && s.r >= 1) {
+        if (w > 0 && w > max((p) => p.w)) kinds.push('weight');
+        else if (
+          s.type !== 'd' &&
+          !pool.some((p) => (p.w ?? (track === 'br' ? 0 : -Infinity)) >= w && (p.r ?? 0) >= s.r)
+        ) {
+          kinds.push('reps');
+        }
+      }
+    } else if (track === 'dur') {
+      if (s.sec > 0 && s.sec > max((p) => p.sec)) kinds.push('hold');
+    } else if (track === 'cardio') {
+      if (s.dist > 0 && s.dist > max((p) => p.dist)) kinds.push('distance');
+    }
+    if (kinds.length) out.set(s.id, kinds);
+    pool.push(s);
+  }
+  return out;
+}
+
+/** For each rep count you have done, the heaviest weight lifted for at least
+    that many reps — the classic rep-max table. A row is dropped when a
+    higher-rep row matches its weight, since that set already proves it.
+    Takes sets carrying their `day`. */
+export function repMaxTable(sets) {
+  const valid = sets.filter((s) => countsForRecords(s) && s.w != null && s.w > 0 && s.r >= 1);
+  const counts = [...new Set(valid.map((s) => s.r))].filter((r) => r <= 20).sort((a, b) => a - b);
+  const rows = counts.map((r) => {
+    let best = null;
+    for (const s of valid) {
+      if (s.r < r) continue;
+      if (!best || s.w > best.w || (s.w === best.w && s.day < best.day)) best = s;
+    }
+    return { reps: r, w: best.w, day: best.day };
+  });
+  return rows.filter((row, i) => !(rows[i + 1] && rows[i + 1].w === row.w));
+}
+
+const isOlder = (a, b) => sortWorkoutsDesc(a, b) > 0;
+
+/** Every record set in workout `w`, judged against the workouts before it. */
+export function workoutRecords(w) {
+  const out = new Map();
+  if (!w) return out;
+  const prior = state.workouts.filter((x) => x.status === 'done' && x.id !== w.id && isOlder(x, w));
+  const earlier = new Map(); // exerciseId -> this session's sets so far
+  for (const e of w.entries) {
+    const track = exerciseById(e.exerciseId)?.track || 'wr';
+    const history = prior.flatMap((x) =>
+      x.entries.filter((pe) => pe.exerciseId === e.exerciseId).flatMap((pe) => pe.sets)
+    );
+    const before = earlier.get(e.exerciseId) || [];
+    findRecords([...history, ...before], e.sets, track).forEach((kinds, id) => out.set(id, kinds));
+    earlier.set(e.exerciseId, [...before, ...e.sets]);
+  }
+  return out;
+}
+
+/** All-time bests for one exercise, for its detail page. */
+export function exerciseRecords(exerciseId) {
+  const sets = [];
+  for (const w of completedWorkouts()) {
+    for (const e of w.entries) {
+      if (e.exerciseId !== exerciseId) continue;
+      for (const s of e.sets) if (countsForRecords(s)) sets.push({ ...s, day: w.day });
+    }
+  }
+  const top = (f) =>
+    sets.reduce((a, s) => (f(s) > 0 && (!a || f(s) > f(a) || (f(s) === f(a) && s.day < a.day)) ? s : a), null);
+  return {
+    repMaxes: repMaxTable(sets),
+    maxReps: top((s) => s.r),
+    hold: top((s) => s.sec),
+    distance: top((s) => s.dist),
+  };
+}
+
 // ---------------------------------------------------------------- backup
 
 export function exportData() {

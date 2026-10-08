@@ -2,7 +2,7 @@
 
 import {
   completedWorkouts, workoutById, workingSets, workoutVolume, workoutDuration,
-  workoutReps, deleteWorkout, saveWorkout, activeWorkout, exerciseById,
+  workoutReps, deleteWorkout, saveWorkout, activeWorkout, exerciseById, workoutRecords, RECORD_LABELS,
   exerciseName, getSettings, saveRoutine, routineFromWorkout,
 } from '../store.js';
 import { node, esc, icon, emptyState, confirmDialog, promptDialog, toast, on } from '../ui.js';
@@ -133,6 +133,7 @@ export function workoutDetailView(id) {
     </section>`)
   );
 
+  const records = workoutRecords(w);
   for (const e of w.entries) {
     const ex = exerciseById(e.exerciseId);
     const track = ex?.track || 'wr';
@@ -151,7 +152,7 @@ export function workoutDetailView(id) {
         </header>
         ${e.notes?.trim() ? `<p class="entry-note">${esc(e.notes.trim())}</p>` : ''}
         <ol class="done-sets">
-          ${done.map((s) => `<li>${describeSet(s, track, unit)}</li>`).join('')}
+          ${done.map((s) => `<li>${describeSet(s, track, unit, records.get(s.id))}</li>`).join('')}
         </ol>
       </section>`)
     );
@@ -225,7 +226,7 @@ export function workoutDetailView(id) {
   return { el };
 }
 
-function describeSet(s, track, unit) {
+function describeSet(s, track, unit, record) {
   const bits = [];
   if (track === 'cardio') {
     if (s.dist != null) bits.push(fmtDistance(s.dist, unit));
@@ -243,6 +244,7 @@ function describeSet(s, track, unit) {
   if (s.type && s.type !== 'w') {
     out += `<span class="tag ${SET_TYPES[s.type].cls}">${esc(SET_TYPES[s.type].label)}</span>`;
   }
+  if (record) out += `<span class="tag tag-pr">${icon('trophy')}${esc(RECORD_LABELS[record[0]])}</span>`;
   if (s.note?.trim()) out += `<span class="set-note">${esc(s.note.trim())}</span>`;
   return out;
 }

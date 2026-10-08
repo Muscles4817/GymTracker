@@ -5,14 +5,14 @@ import {
 } from './util.js';
 import {
   exerciseById, exerciseName, workoutVolume, workingSets, workoutDuration,
-  workoutReps, exerciseSeries, getSettings,
+  workoutReps, exerciseSeries, getSettings, workoutRecords, RECORD_LABELS,
 } from './store.js';
 import { sheet, toast, esc, icon } from './ui.js';
 
 // WhatsApp renders *bold* and _italic_ from plain text, so the message stays
 // readable even where that markup isn't interpreted.
 
-function setLine(s, ex, unit, i) {
+function setLine(s, ex, unit, i, record) {
   const bits = [];
   if (ex?.track === 'cardio') {
     if (s.dist != null) bits.push(fmtDistance(s.dist, unit));
@@ -30,6 +30,7 @@ function setLine(s, ex, unit, i) {
   let line = `  ${i}. ${bits.join(' · ') || '—'}`;
   if (s.rpe != null) line += `  RPE ${s.rpe}`;
   if (s.type && s.type !== 'w') line += `  (${SET_TYPES[s.type].label.toLowerCase()})`;
+  if (record) line += `  🏆 PR (${RECORD_LABELS[record[0]].toLowerCase()})`;
   if (s.note?.trim()) line += ` — ${s.note.trim()}`;
   return line;
 }
@@ -49,13 +50,14 @@ export function formatWorkout(w, { includeFooter = true } = {}) {
   if (vol > 0) meta.push(`${fmtNum(Math.round(unit === 'lb' ? vol / 0.45359237 : vol))} ${unit} volume`);
   lines.push(meta.join(' · '));
 
+  const records = workoutRecords(w);
   for (const e of w.entries) {
     const done = e.sets.filter((s) => s.done);
     if (!done.length) continue;
     const ex = exerciseById(e.exerciseId);
     lines.push('');
     lines.push(`*${exerciseName(e.exerciseId)}*`);
-    done.forEach((s, i) => lines.push(setLine(s, ex, unit, i + 1)));
+    done.forEach((s, i) => lines.push(setLine(s, ex, unit, i + 1, records.get(s.id))));
     if (e.notes?.trim()) lines.push(`  📝 ${e.notes.trim()}`);
   }
 

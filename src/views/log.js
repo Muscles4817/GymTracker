@@ -4,7 +4,7 @@ import {
   activeWorkout, startWorkout, updateWorkout, finishWorkout,
   deleteWorkout, workoutById, newSet, newEntry, exerciseById, exerciseName,
   workoutVolume, workingSets, workoutDuration, lastPerformance, allRoutines,
-  completedWorkouts, getSettings, isSetFilled, showsRpe,
+  completedWorkouts, getSettings, isSetFilled, showsRpe, workoutRecords, RECORD_LABELS,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import { openRoutinePreview } from './routines.js';
@@ -12,7 +12,7 @@ import {
   node, esc, icon, toast, confirmDialog, promptDialog, emptyState, on,
 } from '../ui.js';
 import {
-  fmtWeight, fmtNum, fmtDuration, fmtClock, parseDuration, relativeDay,
+  fmtWeight, fmtNum, fmtDuration, fmtClock, parseDuration, relativeDay, fmtDistance,
   toDisplayWeight, toStoredWeight, toDisplayDistance, toStoredDistance,
   distanceLabel, plural, SET_TYPES, debounce,
 } from '../util.js';
@@ -241,7 +241,8 @@ function activeScreen(workout, rerender) {
       if (!ok) return;
     }
     const done = await finishWorkout(id);
-    toast('Workout saved', {
+    const records = workoutRecords(done).size;
+    toast(records ? `Workout saved · ${plural(records, 'PR')}` : 'Workout saved', {
       action: { label: 'Share', onClick: () => shareWorkout(done) },
       duration: 5000,
     });
@@ -302,15 +303,7 @@ function entryCard(entry, index, ctx) {
 
   const drawRows = () => {
     const e = findEntry(ctx.current(), entry.id);
-    if (!e) return;
-    rowsEl.innerHTML = '';
-    // The first set still outstanding is the one you're about to do.
-    const nextUp = e.sets.findIndex((x) => !x.done);
-    e.sets.forEach((s, i) => {
-      const el = setRow(s, i, e, ctx, track, last, rpeOn);
-      if (i === nextUp) el.classList.add('is-next');
-      rowsEl.appendChild(el);
-    });
+    if (e) fillRows(rowsEl, e, ctx, track, last, rpeOn);
   };
   drawRows();
 
@@ -417,7 +410,19 @@ function setHeader(track, unit, rpeOn) {
   return `<div class="set-head">${cols.map((c) => `<span>${esc(c)}</span>`).join('')}</div>`;
 }
 
-function setRow(s, i, entry, ctx, track, last, rpeOn) {
+function fillRows(rowsEl, e, ctx, track, last, rpeOn) {
+  const records = workoutRecords(ctx.current());
+  rowsEl.innerHTML = '';
+  // The first set still outstanding is the one you're about to do.
+  const nextUp = e.sets.findIndex((x) => !x.done);
+  e.sets.forEach((s, i) => {
+    const el = setRow(s, i, e, ctx, track, last, rpeOn, records.get(s.id));
+    if (i === nextUp) el.classList.add('is-next');
+    rowsEl.appendChild(el);
+  });
+}
+
+function setRow(s, i, entry, ctx, track, last, rpeOn, record) {
   const unit = getSettings().unit;
   const prevSet = last?.entry.sets.filter((x) => x.done)[i] || null;
   const prevText = prevSet
@@ -434,6 +439,7 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
 
   const t = SET_TYPES[s.type] || SET_TYPES.w;
   const badge = s.type === 'w' ? String(i + 1) : t.short;
+  const typeTitle = record ? `${t.label} — personal record (${RECORD_LABELS[record[0]].toLowerCase()})` : `${t.label} — tap to change`;
 
   const numInput = (field, value, placeholder, mode = 'decimal') =>
     `<input class="input num" data-f="${field}" inputmode="${mode}" enterkeyhint="next" value="${value == null ? '' : esc(value)}" placeholder="${esc(placeholder)}" aria-label="${esc(field)}">`;
@@ -457,8 +463,8 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
   }
 
   const row = node(`
-    <div class="set-row ${s.done ? 'is-done' : ''}" data-set="${esc(s.id)}">
-      <button class="set-type ${t.cls}" data-a="cycle-type" type="button" title="${esc(t.label)} — tap to change">${esc(badge)}</button>
+    <div class="set-row ${s.done ? 'is-done' : ''} ${record ? 'is-pr' : ''}" data-set="${esc(s.id)}">
+      <button class="set-type ${t.cls}" data-a="cycle-type" type="button" title="${esc(typeTitle)}" aria-label="${esc(`Set ${badge}, ${typeTitle}`)}">${esc(badge)}</button>
       <span class="prev" title="Last session">${esc(prevText)}</span>
       ${fields}
       <div class="set-end">
@@ -519,9 +525,18 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
       const target = findEntry(w, entry.id)?.sets.find((x) => x.id === s.id);
       if (target) target.done = nowDone;
     });
-    row.classList.toggle('is-done', nowDone);
-    row.querySelector('[data-a="toggle-done"]').setAttribute('aria-pressed', String(nowDone));
+    // Redraw rather than toggle classes: the next-set rail moves on, and
+    // ticking can make this set — or untick a later one out of — a record.
+    redrawSiblings(ctx, entry.id);
     ctx.refreshStats();
+    const record = nowDone && workoutRecords(ctx.current()).get(s.id);
+    const current = () => findEntry(ctx.current(), entry.id)?.sets.find((x) => x.id === s.id) || s;
+    if (record) {
+      toast(`New PR · ${exerciseName(entry.exerciseId)} · ${recordText(record[0], current(), track, unit)}`, {
+        kind: 'pr',
+        duration: 4000,
+      });
+    }
     const settings = getSettings();
     if (nowDone && settings.restAuto && settings.restDefault > 0) {
       startRest(settings.restDefault, exerciseName(entry.exerciseId));
@@ -568,6 +583,13 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
   return row;
 }
 
+function recordText(kind, s, track, unit) {
+  if (kind === 'hold') return `${fmtDuration(s.sec)} hold`;
+  if (kind === 'distance') return fmtDistance(s.dist, unit);
+  const load = s.w != null ? fmtWeight(s.w, unit) : 'bodyweight';
+  return kind === 'weight' ? `heaviest ever, ${load} × ${s.r}` : `${plural(s.r, 'rep')} at ${load}`;
+}
+
 function redrawSiblings(ctx, entryId) {
   // Cheap and correct: rebuild just this exercise's rows.
   const card = document.querySelector(`.entry[data-entry="${CSS.escape(entryId)}"]`);
@@ -576,9 +598,8 @@ function redrawSiblings(ctx, entryId) {
   if (!e) return ctx.drawEntries();
   const track = exerciseById(e.exerciseId)?.track || 'wr';
   const last = lastPerformance(e.exerciseId, ctx.id);
-  const rowsEl = card.querySelector('.set-rows');
-  rowsEl.innerHTML = '';
-  e.sets.forEach((s, i) => rowsEl.appendChild(setRow(s, i, e, ctx, track, last)));
+  const rpeOn = track !== 'cardio' && showsRpe(e, getSettings().trackRpe);
+  fillRows(card.querySelector('.set-rows'), e, ctx, track, last, rpeOn);
 }
 
 function rpeSelect(value) {
