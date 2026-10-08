@@ -27,6 +27,9 @@ screen and works with the phone in airplane mode.
 - Save any finished workout as a template, or build one from scratch
 - Add a ready-made programme from the built-in templates (gym and home plans)
 - Starting a routine pre-fills the sets, reps and weights — you only correct what changed
+- **Suggested increases**: a routine loads what you lifted last time, and once
+  every target set hit its target reps it adds one step (2.5 kg / 5 lb by
+  default, adjustable in Settings)
 
 **Progress**
 - Training volume per week, working sets per week, a training-days calendar, and

@@ -2,7 +2,7 @@
 
 import {
   allRoutines, routineById, saveRoutine, deleteRoutine, startFromRoutine,
-  activeWorkout, exerciseName, exerciseById, getSettings,
+  activeWorkout, exerciseName, exerciseById, getSettings, routineTarget,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import { ROUTINE_TEMPLATES, TEMPLATE_GROUPS, templateById, routineFromTemplate } from '../routine-templates.js';
@@ -96,14 +96,17 @@ function runningNotice(w) {
     </div>`;
 }
 
+/** What starting the routine will actually load — today's suggestion, not
+    just the stored target. */
 function targetText(item, unit) {
   const ex = exerciseById(item.exerciseId);
   const timed = ex?.track === 'dur' || ex?.track === 'cardio';
   const sets = Math.max(1, Number(item.targetSets) || 1);
+  const next = routineTarget(item);
   let s = plural(sets, 'set');
-  if (item.targetReps != null && !timed) s = `${sets} × ${item.targetReps}`;
-  if (item.targetWeight != null) s += ` @ ${fmtWeight(item.targetWeight, unit)}`;
-  return s;
+  if (next.r != null && !timed) s = `${sets} × ${next.r}`;
+  if (next.w != null) s += ` @ ${fmtWeight(next.w, unit)}`;
+  return next.up ? `${s} ↑` : s;
 }
 
 /** Tapping a routine only ever shows it. Starting is the one labelled button
@@ -119,6 +122,11 @@ export function openRoutinePreview(id) {
     bodyHtml: `
       <div class="stack">
         ${r.notes?.trim() ? `<p class="muted">${esc(r.notes)}</p>` : ''}
+        ${
+          r.items.some((i) => routineTarget(i).up)
+            ? '<p class="muted small">↑ marks a step up: you hit every target rep at that exercise\'s weight last time.</p>'
+            : ''
+        }
         ${
           r.items.length
             ? `<ul class="preview-list">${r.items

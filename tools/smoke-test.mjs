@@ -657,14 +657,17 @@ ${timedRoundTrip}`);
         name: w.name,
         entries: w.entries.length,
         prefilled: w.entries[0].sets.map(x => [x.w, x.r]),
+        hint: w.entries[0].hint || null,
+        hintShown: !!document.querySelector('.entry .entry-hint'),
       };
     })()`, 'routine');
   if (routine.name !== 'Push Day A' || routine.entries !== 2) {
     fail('Routine', `started as ${JSON.stringify(routine)}`);
-  } else if (routine.prefilled[0][0] !== 80) {
-    fail('Routine prefill', `first set is ${JSON.stringify(routine.prefilled[0])}, expected 80 kg`);
+  } else if (routine.prefilled[0][0] !== 82.5 || routine.hint?.from !== 80 || !routine.hintShown) {
+    // Last time was 80 × 8 against a target of 8, so the suggestion steps up.
+    fail('Routine prefill', `first set ${JSON.stringify(routine.prefilled[0])}, hint ${JSON.stringify(routine.hint)}, shown ${routine.hintShown}`);
   } else {
-    ok('Routine saved and started', `"${routine.name}", ${routine.entries} exercises, sets prefilled at 80 kg`);
+    ok('Routine started with a suggested step up', `"${routine.name}", 80 → 82.5 kg after hitting every rep last time`);
   }
 
   // Beat the bench's best through the real inputs: the set should be marked,
@@ -775,12 +778,14 @@ ${timedRoundTrip}`);
     fail('Routine templates', `added ${templates.added} of ${templates.catalogue}`);
   } else if (templates.started !== 'Workout 1 – Chest' || templates.entries !== 7) {
     fail('Template start', JSON.stringify(templates));
-  } else if (templates.firstSets !== 4 || templates.firstPrefill[0] !== 40 || templates.firstPrefill[1] !== 10) {
+  } else if (templates.firstSets !== 4 || templates.firstPrefill[0] !== 80 || templates.firstPrefill[1] !== 10) {
+    // The template starts bench at 40 kg, but you last benched 80 × 8 — short
+    // of its 10 reps — so it loads 80 rather than stepping up or going back.
     fail('Template prefill', `first entry ${templates.firstSets} sets, prefill ${JSON.stringify(templates.firstPrefill)}`);
   } else {
     ok(
       'Routine templates added and started',
-      `${templates.added} routines, "${templates.started}" prefilled 4 × 10 @ 40 kg`
+      `${templates.added} routines, "${templates.started}" prefilled 4 × 10 @ 80 kg from last time`
     );
   }
   await evaluate(`

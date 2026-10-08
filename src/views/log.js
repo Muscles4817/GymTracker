@@ -292,6 +292,13 @@ function entryCard(entry, index, ctx) {
         </div>
       </header>
       ${entry.notes?.trim() ? `<p class="entry-note">${esc(entry.notes.trim())}</p>` : ''}
+      ${
+        entry.hint
+          ? `<p class="entry-hint">${icon('up')}<span>Up ${esc(fmtWeight(entry.hint.to - entry.hint.from, unit))} from ${esc(
+              fmtWeight(entry.hint.from, unit)
+            )} — you hit every target rep last time.</span></p>`
+          : ''
+      }
       <div class="set-table" data-track="${track}" data-rpe="${rpeOn ? 'on' : 'off'}">
         ${setHeader(track, unit, rpeOn)}
         <div class="set-rows"></div>

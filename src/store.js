@@ -4,7 +4,7 @@
 
 import { STORES, dbAll, dbGet, dbPut, dbPutMany, dbDelete, wipeAll, openDb } from './db.js';
 import { EXERCISE_LIBRARY, LIBRARY_VERSION } from './exercises.js';
-import { uid, dayKey, weekKey } from './util.js';
+import { uid, dayKey, weekKey, KG_PER_LB } from './util.js';
 
 export const DEFAULT_SETTINGS = {
   unit: 'kg',
@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS = {
   theme: 'system',
   textScale: 1,
   trackRpe: false,
+  suggestIncrease: true,
+  increment: null, // kg; null means 2.5 kg, or 5 lb when showing pounds
   sound: true,
   vibrate: true,
   trainerName: '',
@@ -188,12 +190,43 @@ export async function startFromRoutine(routineId) {
   if (!r) return startWorkout();
   const entries = r.items.map((it) => {
     const n = Math.max(1, Number(it.targetSets) || 1);
-    const sets = Array.from({ length: n }, () =>
-      newSet({ w: it.targetWeight ?? null, r: it.targetReps ?? null })
-    );
-    return { ...newEntry(it.exerciseId, sets), notes: it.notes || '' };
+    const next = routineTarget(it);
+    const sets = Array.from({ length: n }, () => newSet({ w: next.w, r: next.r }));
+    const entry = { ...newEntry(it.exerciseId, sets), notes: it.notes || '' };
+    if (next.up) entry.hint = { from: next.from, to: next.w };
+    return entry;
   });
   return startWorkout({ name: r.name, routineId, entries });
+}
+
+/** The weight step for a suggested increase, in kg. */
+export function incrementStep(settings = state.settings) {
+  if (settings.increment > 0) return settings.increment;
+  return settings.unit === 'lb' ? 5 * KG_PER_LB : 2.5;
+}
+
+/** What a routine item should load today, given how its exercise went last
+    time. Double progression: repeat your last top weight until every target
+    set reaches the target reps at it, then add one step. A routine target
+    set higher than that still wins — you raised it on purpose.
+
+    Pure: `lastSets` are the sets from the last session of the exercise. */
+export function suggestTarget(item, lastSets, step) {
+  const plain = { w: item.targetWeight ?? null, r: item.targetReps ?? null, up: false, from: null };
+  const working = (lastSets || []).filter((s) => s.done && s.type !== 'wu' && s.w != null);
+  if (!working.length) return plain;
+  const base = Math.max(...working.map((s) => s.w));
+  const goal = item.targetReps;
+  const needed = Math.max(1, Number(item.targetSets) || 1);
+  const earned = goal != null && working.filter((s) => s.w >= base && s.r >= goal).length >= needed;
+  const w = earned ? base + step : base;
+  if (item.targetWeight != null && item.targetWeight > w) return plain;
+  return { w, r: plain.r, up: earned, from: earned ? base : null };
+}
+
+export function routineTarget(item) {
+  if (!state.settings.suggestIncrease) return suggestTarget(item, null, 0);
+  return suggestTarget(item, lastPerformance(item.exerciseId)?.entry.sets, incrementStep());
 }
 
 export async function saveWorkout(w) {

@@ -21,6 +21,8 @@ import {
   showsRpe,
   findRecords,
   repMaxTable,
+  suggestTarget,
+  incrementStep,
 } from '../src/store.js';
 
 /** A done working set, unless overridden. */
@@ -371,4 +373,52 @@ test('repMaxTable keeps the first day a weight was reached', () => {
 
 test('repMaxTable ignores warm-ups and weightless sets', () => {
   assert.deepEqual(repMaxTable([s({ w: 200, r: 1, type: 'wu', day: 'a' }), s({ r: 10, day: 'b' })]), []);
+});
+
+// ---------------------------------------------------------------- suggested increases
+
+const item = (over = {}) => ({ exerciseId: 'x', targetSets: 3, targetReps: 10, targetWeight: 40, ...over });
+
+test('suggestTarget uses the routine targets with no history', () => {
+  assert.deepEqual(suggestTarget(item(), null, 2.5), { w: 40, r: 10, up: false, from: null });
+});
+
+test('suggestTarget adds a step once every target set hit the target reps', () => {
+  const last = [s({ w: 60, r: 10 }), s({ w: 60, r: 11 }), s({ w: 60, r: 10 })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 62.5, r: 10, up: true, from: 60 });
+});
+
+test('suggestTarget repeats the weight when a set fell short', () => {
+  const last = [s({ w: 60, r: 10 }), s({ w: 60, r: 9 }), s({ w: 60, r: 8 })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 60, r: 10, up: false, from: null });
+});
+
+test('suggestTarget needs the target number of sets at the top weight', () => {
+  const last = [s({ w: 60, r: 10 }), s({ w: 60, r: 10 })];
+  assert.equal(suggestTarget(item(), last, 2.5).up, false);
+});
+
+test('suggestTarget ignores warm-ups and unticked sets', () => {
+  const last = [s({ w: 100, r: 10, type: 'wu' }), s({ w: 60, r: 10 }), s({ w: 60, r: 10 }), s({ w: 60, r: 10 }), s({ w: 90, r: 1, done: false })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 62.5, r: 10, up: true, from: 60 });
+});
+
+test('suggestTarget lets a higher routine target win', () => {
+  const last = [s({ w: 30, r: 10 }), s({ w: 30, r: 10 }), s({ w: 30, r: 10 })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 40, r: 10, up: false, from: null });
+});
+
+test('suggestTarget never steps up without a rep target to judge by', () => {
+  const last = [s({ w: 60, r: 12 })];
+  assert.deepEqual(suggestTarget(item({ targetReps: null, targetSets: 1 }), last, 2.5), { w: 60, r: null, up: false, from: null });
+});
+
+test('suggestTarget leaves unweighted work alone', () => {
+  assert.deepEqual(suggestTarget(item({ targetWeight: null }), [s({ r: 15 })], 2.5), { w: null, r: 10, up: false, from: null });
+});
+
+test('incrementStep defaults to 2.5 kg, or 5 lb when showing pounds', () => {
+  assert.equal(incrementStep({ unit: 'kg', increment: null }), 2.5);
+  assert.ok(Math.abs(incrementStep({ unit: 'lb', increment: null }) - 2.26796185) < 1e-6);
+  assert.equal(incrementStep({ unit: 'lb', increment: 2 }), 2);
 });

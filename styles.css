@@ -384,6 +384,7 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 }
 .setting label { font-weight: 600; font-size: var(--fs-sm); }
 .setting .input { max-width: 13rem; }
+.setting .input.num { max-width: 6rem; text-align: center; }
 .check-row {
   display: flex;
   align-items: center;
@@ -476,6 +477,18 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 .entry-sub { font-size: var(--fs-xs); color: var(--text-secondary); }
 /* 8dp between neighbouring targets (Material) — these sit next to a delete. */
 .entry-tools { display: flex; gap: 6px; flex: none; }
+.entry-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+}
+.entry-hint .icon { flex: none; width: 1rem; height: 1rem; color: var(--accent); }
 .entry-note {
   margin: 8px 0 0;
   padding: 8px 10px;
