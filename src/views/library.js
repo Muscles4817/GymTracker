@@ -3,7 +3,7 @@
 import { MUSCLES, EQUIPMENT } from '../exercises.js';
 import {
   activeExercises, exerciseById, exerciseSeries, lastPerformance, getSettings,
-  deleteExercise,
+  deleteExercise, exerciseRecords, e1rm,
 } from '../store.js';
 import { node, esc, icon, emptyState, toast, confirmDialog, on } from '../ui.js';
 import {
@@ -110,6 +110,37 @@ export function libraryView() {
 
 // ---------------------------------------------------------------- exercise detail
 
+function recordsCard(ex, unit) {
+  const rec = exerciseRecords(ex.id);
+  const row = (label, value, day) =>
+    `<li><span class="record-label">${esc(label)}</span><span class="record-value">${esc(value)}</span><span class="record-day">${esc(fmtDate(day, { day: 'numeric', month: 'short', year: '2-digit' }))}</span></li>`;
+  const rows = [];
+  if (ex.track === 'wr' || ex.track === 'br') {
+    if (rec.e1rm) {
+      rows.push(row('Est. 1RM', fmtWeight(e1rm(rec.e1rm.w, rec.e1rm.r), unit), rec.e1rm.day));
+    }
+    rec.repMaxes.forEach((r) => rows.push(row(r.reps === 1 ? '1 rep' : `${r.reps} reps`, fmtWeight(r.w, unit), r.day)));
+    if (ex.track === 'br' && rec.maxReps) rows.push(row('Most reps', plural(rec.maxReps.r, 'rep'), rec.maxReps.day));
+  } else if (ex.track === 'dur' && rec.hold) {
+    rows.push(row('Longest hold', fmtDuration(rec.hold.sec), rec.hold.day));
+  } else if (ex.track === 'cardio' && rec.distance) {
+    rows.push(row('Longest distance', fmtDistance(rec.distance.dist, unit), rec.distance.day));
+  }
+  if (!rows.length) return null;
+  return node(`
+    <section class="card">
+      <header class="card-head"><h3>${icon('trophy', 'muted-icon')} Personal records</h3></header>
+      ${
+        ex.track === 'wr' || ex.track === 'br'
+          ? `<p class="muted small">${
+              rec.e1rm ? 'Est. 1RM is what your best set suggests you could lift once. ' : ''
+            }The rest: the heaviest weight you have lifted for at least that many reps.</p>`
+          : ''
+      }
+      <ul class="record-list">${rows.join('')}</ul>
+    </section>`);
+}
+
 export function exerciseDetailView(id) {
   const ex = exerciseById(id);
   const el = node('<div class="view stack"></div>');
@@ -125,6 +156,8 @@ export function exerciseDetailView(id) {
     ? withWeight.reduce((a, s) => (s.topWeight > a.topWeight ? s : a))
     : null;
   const last = series[series.length - 1] || null;
+  const withE1rm = ex.track === 'wr' ? series.filter((s) => s.e1rm != null) : [];
+  const bestE1rm = withE1rm.length ? Math.max(...withE1rm.map((s) => s.e1rm)) : null;
 
   el.appendChild(
     node(`
@@ -143,6 +176,11 @@ export function exerciseDetailView(id) {
         <div class="stat"><span class="stat-value">${
           best ? esc(fmtWeight(best.topWeight, unit, false)) : '—'
         }</span><span class="stat-label">heaviest ${esc(unit)}</span></div>
+        ${
+          bestE1rm != null
+            ? `<div class="stat"><span class="stat-value">${esc(fmtWeight(bestE1rm, unit, false))}</span><span class="stat-label">est. 1RM</span></div>`
+            : ''
+        }
         <div class="stat"><span class="stat-value">${
           last ? esc(relativeDay(last.day)) : '—'
         }</span><span class="stat-label">last done</span></div>
@@ -157,6 +195,9 @@ export function exerciseDetailView(id) {
       <button class="btn btn-whatsapp btn-block" data-a="share" type="button">${icon('whatsapp')} Share progress</button>
     </section>`)
   );
+
+  const records = recordsCard(ex, unit);
+  if (records) el.appendChild(records);
 
   if (!series.length) {
     el.appendChild(
@@ -178,6 +219,38 @@ export function exerciseDetailView(id) {
 
   // Two measures, two charts — never a second y-axis on one plot.
   if (ex.track === 'wr' || ex.track === 'br') {
+    // Leads, because it moves whichever rep range you trained in — the
+    // heaviest set drops on a high-rep day even when you got stronger.
+    if (withE1rm.length) {
+      el.appendChild(
+        chartCard({
+          title: 'Estimated 1-rep max',
+          subtitle: `From each session's best set, in ${unit}`,
+          height: 210,
+          render: lineSeries({
+            data: withE1rm.map((s) => ({
+              label: labelOf(s),
+              value: Number(fmtWeight(s.e1rm, unit, false)),
+              tip: `<strong>${esc(fmtDate(s.day))}</strong><br>est. ${esc(fmtWeight(s.e1rm, unit))} from ${esc(
+                fmtWeight(s.e1rmSet.w, unit)
+              )} × ${s.e1rmSet.r}`,
+            })),
+            fmtValue: (v) => `${v} ${unit}`,
+            fmtY: (v) => String(v),
+          }),
+          table: () => ({
+            head: ['Date', `Est. 1RM (${unit})`, 'From set'],
+            rows: withE1rm.map((s) => [
+              fmtDateFull(s.day),
+              fmtWeight(s.e1rm, unit, false),
+              `${fmtWeight(s.e1rmSet.w, unit)} × ${s.e1rmSet.r}`,
+            ]),
+          }),
+          note: 'Epley formula, from sets of 12 reps or fewer. Warm-ups are excluded.',
+        })
+      );
+    }
+
     if (withWeight.length) {
       el.appendChild(
         chartCard({

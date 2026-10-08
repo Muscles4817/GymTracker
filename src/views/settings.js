@@ -2,11 +2,11 @@
 
 import {
   getSettings, saveSettings, exportData, importData, resetEverything,
-  completedWorkouts, allExercises, allRoutines,
+  completedWorkouts, allExercises, allRoutines, incrementStep,
 } from '../store.js';
 import { workoutsToCsv, downloadBlob } from '../share.js';
 import { node, esc, icon, toast, confirmDialog, promptDialog } from '../ui.js';
-import { dayKey, fmtDateFull, plural } from '../util.js';
+import { dayKey, fmtDateFull, plural, toDisplayWeight, toStoredWeight } from '../util.js';
 import { applyTheme, applyTextScale, TEXT_SCALES } from '../theme.js';
 
 export function settingsView() {
@@ -42,6 +42,16 @@ export function settingsView() {
         <p class="muted small">Scales the whole app, bars included. Your browser's own font-size setting still applies on top.</p>
         <label class="check-row"><input type="checkbox" id="set-rpe" ${s.trackRpe ? 'checked' : ''}> Show an RPE column when logging</label>
         <p class="muted small">RPE records how hard a set felt, 6 to 10, where 8 means you had about two reps left. Off by default to keep the row wide — sets that already have one still show it.</p>
+      </section>
+
+      <section class="card">
+        <header class="card-head"><h3>Progression</h3></header>
+        <label class="check-row"><input type="checkbox" id="set-suggest" ${s.suggestIncrease ? 'checked' : ''}> Suggest a heavier weight when I've earned it</label>
+        <div class="setting">
+          <label for="set-step">Step up by (${esc(s.unit)})</label>
+          <input class="input num" id="set-step" inputmode="decimal" value="${esc(String(Math.round(toDisplayWeight(incrementStep(s), s.unit) * 100) / 100))}">
+        </div>
+        <p class="muted small">Starting a routine loads what you lifted last time. Once every target set reached its target reps at that weight, the next session adds one step.</p>
       </section>
 
       <section class="card">
@@ -102,6 +112,9 @@ export function settingsView() {
   // ---- units, theme
   el.querySelector('#set-unit').addEventListener('change', async (ev) => {
     await saveSettings({ unit: ev.target.value });
+    const step = el.querySelector('#set-step');
+    step.value = String(Math.round(toDisplayWeight(incrementStep(), ev.target.value) * 100) / 100);
+    el.querySelector('label[for="set-step"]').textContent = `Step up by (${ev.target.value})`;
     toast(`Showing weights in ${ev.target.value}`);
   });
   el.querySelector('#set-theme').addEventListener('change', async (ev) => {
@@ -113,6 +126,14 @@ export function settingsView() {
     const scale = Number(ev.target.value);
     applyTextScale(scale); // apply first so the change is visible while saving
     await saveSettings({ textScale: scale });
+  });
+
+  // ---- progression
+  el.querySelector('#set-suggest').addEventListener('change', (ev) => saveSettings({ suggestIncrease: ev.target.checked }));
+  el.querySelector('#set-step').addEventListener('change', (ev) => {
+    const v = parseFloat(ev.target.value);
+    // Blank or nonsense goes back to the default for the unit.
+    saveSettings({ increment: v > 0 ? toStoredWeight(v, getSettings().unit) : null });
   });
 
   // ---- rest timer

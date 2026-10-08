@@ -5,14 +5,14 @@ import {
 } from './util.js';
 import {
   exerciseById, exerciseName, workoutVolume, workingSets, workoutDuration,
-  workoutReps, exerciseSeries, getSettings,
+  workoutReps, exerciseSeries, getSettings, workoutRecords, RECORD_LABELS, supersetLabels,
 } from './store.js';
 import { sheet, toast, esc, icon } from './ui.js';
 
 // WhatsApp renders *bold* and _italic_ from plain text, so the message stays
 // readable even where that markup isn't interpreted.
 
-function setLine(s, ex, unit, i) {
+function setLine(s, ex, unit, i, record) {
   const bits = [];
   if (ex?.track === 'cardio') {
     if (s.dist != null) bits.push(fmtDistance(s.dist, unit));
@@ -30,6 +30,7 @@ function setLine(s, ex, unit, i) {
   let line = `  ${i}. ${bits.join(' · ') || '—'}`;
   if (s.rpe != null) line += `  RPE ${s.rpe}`;
   if (s.type && s.type !== 'w') line += `  (${SET_TYPES[s.type].label.toLowerCase()})`;
+  if (record) line += `  🏆 PR (${RECORD_LABELS[record[0]].toLowerCase()})`;
   if (s.note?.trim()) line += ` — ${s.note.trim()}`;
   return line;
 }
@@ -49,14 +50,20 @@ export function formatWorkout(w, { includeFooter = true } = {}) {
   if (vol > 0) meta.push(`${fmtNum(Math.round(unit === 'lb' ? vol / 0.45359237 : vol))} ${unit} volume`);
   lines.push(meta.join(' · '));
 
-  for (const e of w.entries) {
+  const records = workoutRecords(w);
+  const labels = supersetLabels(w.entries);
+  w.entries.forEach((e, at) => {
     const done = e.sets.filter((s) => s.done);
-    if (!done.length) continue;
+    if (!done.length) return;
     const ex = exerciseById(e.exerciseId);
     lines.push('');
-    lines.push(`*${exerciseName(e.exerciseId)}*`);
-    done.forEach((s, i) => lines.push(setLine(s, ex, unit, i + 1)));
+    lines.push(`*${labels.has(at) ? `${labels.get(at)} ` : ''}${exerciseName(e.exerciseId)}*`);
+    done.forEach((s, i) => lines.push(setLine(s, ex, unit, i + 1, records.get(s.id))));
     if (e.notes?.trim()) lines.push(`  📝 ${e.notes.trim()}`);
+  });
+  if (labels.size) {
+    lines.push('');
+    lines.push('_Same letter = superset, done back to back._');
   }
 
   if (w.notes?.trim()) {
@@ -111,11 +118,17 @@ export function formatExerciseProgress(exerciseId) {
     const best = withWeight.reduce((a, s) => (s.topWeight > a.topWeight ? s : a));
     lines.push(`Best set: ${fmtWeight(best.topWeight, unit)} × ${best.topReps ?? '?'} on ${fmtDateFull(best.day)}`);
   }
+  const withE1rm = exerciseById(exerciseId)?.track === 'wr' ? series.filter((s) => s.e1rm != null) : [];
+  if (withE1rm.length) {
+    const best = withE1rm.reduce((a, s) => (s.e1rm > a.e1rm ? s : a));
+    lines.push(`Best est. 1RM: ${fmtWeight(best.e1rm, unit)} (from ${fmtWeight(best.e1rmSet.w, unit)} × ${best.e1rmSet.r}, ${fmtDateFull(best.day)})`);
+  }
   lines.push(`${plural(series.length, 'session')} logged`);
   lines.push('');
   for (const s of series.slice(-12)) {
     const bits = [];
     if (s.topWeight != null) bits.push(`top ${fmtWeight(s.topWeight, unit)} × ${s.topReps ?? '?'}`);
+    if (s.e1rm != null && withE1rm.length) bits.push(`est. 1RM ${fmtWeight(s.e1rm, unit)}`);
     if (s.distance) bits.push(fmtDistance(s.distance, unit));
     if (s.seconds) bits.push(fmtDuration(s.seconds));
     bits.push(plural(s.sets, 'set'));

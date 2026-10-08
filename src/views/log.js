@@ -4,15 +4,16 @@ import {
   activeWorkout, startWorkout, updateWorkout, finishWorkout,
   deleteWorkout, workoutById, newSet, newEntry, exerciseById, exerciseName,
   workoutVolume, workingSets, workoutDuration, lastPerformance, allRoutines,
-  completedWorkouts, getSettings, isSetFilled, showsRpe,
+  completedWorkouts, getSettings, isSetFilled, showsRpe, workoutRecords, RECORD_LABELS,
+  normalizeGroups, supersetLabels, supersetNext, e1rm,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import { openRoutinePreview } from './routines.js';
 import {
-  node, esc, icon, toast, confirmDialog, promptDialog, emptyState, on,
+  node, esc, icon, toast, confirmDialog, promptDialog, emptyState, on, supersetSeam,
 } from '../ui.js';
 import {
-  fmtWeight, fmtNum, fmtDuration, fmtClock, parseDuration, relativeDay,
+  fmtWeight, fmtNum, fmtDuration, fmtClock, parseDuration, relativeDay, fmtDistance,
   toDisplayWeight, toStoredWeight, toDisplayDistance, toStoredDistance,
   distanceLabel, plural, SET_TYPES, debounce,
 } from '../util.js';
@@ -179,8 +180,17 @@ function activeScreen(workout, rerender) {
       );
       return;
     }
+    const labels = supersetLabels(w.entries);
     w.entries.forEach((entry, i) => {
-      entriesEl.appendChild(entryCard(entry, i, { id, mutate, current, drawEntries, refreshStats }));
+      if (i > 0) {
+        entriesEl.appendChild(
+          supersetSeam(w.entries, i - 1, async (toggle) => {
+            await mutate((x) => toggle(x.entries));
+            drawEntries();
+          })
+        );
+      }
+      entriesEl.appendChild(entryCard(entry, i, { id, mutate, current, drawEntries, refreshStats, label: labels.get(i) }));
     });
   };
 
@@ -241,7 +251,8 @@ function activeScreen(workout, rerender) {
       if (!ok) return;
     }
     const done = await finishWorkout(id);
-    toast('Workout saved', {
+    const records = workoutRecords(done).size;
+    toast(records ? `Workout saved · ${plural(records, 'PR')}` : 'Workout saved', {
       action: { label: 'Share', onClick: () => shareWorkout(done) },
       duration: 5000,
     });
@@ -278,10 +289,12 @@ function entryCard(entry, index, ctx) {
   const rpeOn = track !== 'cardio' && showsRpe(entry, getSettings().trackRpe);
 
   const card = node(`
-    <section class="card entry" data-entry="${esc(entry.id)}">
+    <section class="card entry ${ctx.label ? 'in-superset' : ''}" data-entry="${esc(entry.id)}">
       <header class="entry-head">
         <div class="entry-title">
-          <a class="entry-name" href="#/exercise/${esc(entry.exerciseId)}">${esc(exerciseName(entry.exerciseId))}</a>
+          <a class="entry-name" href="#/exercise/${esc(entry.exerciseId)}">${
+            ctx.label ? `<span class="ss-tag" title="Superset">${esc(ctx.label)}</span>` : ''
+          }${esc(exerciseName(entry.exerciseId))}</a>
           <span class="entry-sub">${esc(lastSummary(last, unit, track))}</span>
         </div>
         <div class="entry-tools">
@@ -291,6 +304,13 @@ function entryCard(entry, index, ctx) {
         </div>
       </header>
       ${entry.notes?.trim() ? `<p class="entry-note">${esc(entry.notes.trim())}</p>` : ''}
+      ${
+        entry.hint
+          ? `<p class="entry-hint">${icon('up')}<span>Up ${esc(fmtWeight(entry.hint.to - entry.hint.from, unit))} from ${esc(
+              fmtWeight(entry.hint.from, unit)
+            )} — you hit every target rep last time.</span></p>`
+          : ''
+      }
       <div class="set-table" data-track="${track}" data-rpe="${rpeOn ? 'on' : 'off'}">
         ${setHeader(track, unit, rpeOn)}
         <div class="set-rows"></div>
@@ -302,15 +322,7 @@ function entryCard(entry, index, ctx) {
 
   const drawRows = () => {
     const e = findEntry(ctx.current(), entry.id);
-    if (!e) return;
-    rowsEl.innerHTML = '';
-    // The first set still outstanding is the one you're about to do.
-    const nextUp = e.sets.findIndex((x) => !x.done);
-    e.sets.forEach((s, i) => {
-      const el = setRow(s, i, e, ctx, track, last, rpeOn);
-      if (i === nextUp) el.classList.add('is-next');
-      rowsEl.appendChild(el);
-    });
+    if (e) fillRows(rowsEl, e, ctx, track, last, rpeOn);
   };
   drawRows();
 
@@ -345,6 +357,7 @@ function entryCard(entry, index, ctx) {
     await ctx.mutate((w) => {
       const i = w.entries.findIndex((x) => x.id === entry.id);
       if (i > 0) [w.entries[i - 1], w.entries[i]] = [w.entries[i], w.entries[i - 1]];
+      normalizeGroups(w.entries);
     });
     ctx.drawEntries();
   });
@@ -369,6 +382,7 @@ function entryCard(entry, index, ctx) {
     await ctx.mutate((w) => {
       at = w.entries.findIndex((x) => x.id === entry.id);
       if (at > -1) w.entries.splice(at, 1);
+      normalizeGroups(w.entries);
     });
     ctx.drawEntries();
     ctx.refreshStats();
@@ -378,7 +392,11 @@ function entryCard(entry, index, ctx) {
       action: {
         label: 'Undo',
         onClick: async () => {
-          await ctx.mutate((w) => w.entries.splice(Math.min(at, w.entries.length), 0, snapshot));
+          await ctx.mutate((w) => {
+            w.entries.splice(Math.min(at, w.entries.length), 0, snapshot);
+            // Back into its superset only if its old neighbours still are one.
+            normalizeGroups(w.entries);
+          });
           ctx.drawEntries();
           ctx.refreshStats();
         },
@@ -390,6 +408,7 @@ function entryCard(entry, index, ctx) {
 }
 
 const findEntry = (w, entryId) => w?.entries.find((e) => e.id === entryId) || null;
+
 
 function lastSummary(last, unit, track) {
   if (!last) return 'First time logging this';
@@ -417,7 +436,19 @@ function setHeader(track, unit, rpeOn) {
   return `<div class="set-head">${cols.map((c) => `<span>${esc(c)}</span>`).join('')}</div>`;
 }
 
-function setRow(s, i, entry, ctx, track, last, rpeOn) {
+function fillRows(rowsEl, e, ctx, track, last, rpeOn) {
+  const records = workoutRecords(ctx.current());
+  rowsEl.innerHTML = '';
+  // The first set still outstanding is the one you're about to do.
+  const nextUp = e.sets.findIndex((x) => !x.done);
+  e.sets.forEach((s, i) => {
+    const el = setRow(s, i, e, ctx, track, last, rpeOn, records.get(s.id));
+    if (i === nextUp) el.classList.add('is-next');
+    rowsEl.appendChild(el);
+  });
+}
+
+function setRow(s, i, entry, ctx, track, last, rpeOn, record) {
   const unit = getSettings().unit;
   const prevSet = last?.entry.sets.filter((x) => x.done)[i] || null;
   const prevText = prevSet
@@ -434,6 +465,7 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
 
   const t = SET_TYPES[s.type] || SET_TYPES.w;
   const badge = s.type === 'w' ? String(i + 1) : t.short;
+  const typeTitle = record ? `${t.label} — personal record (${RECORD_LABELS[record[0]].toLowerCase()})` : `${t.label} — tap to change`;
 
   const numInput = (field, value, placeholder, mode = 'decimal') =>
     `<input class="input num" data-f="${field}" inputmode="${mode}" enterkeyhint="next" value="${value == null ? '' : esc(value)}" placeholder="${esc(placeholder)}" aria-label="${esc(field)}">`;
@@ -457,8 +489,8 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
   }
 
   const row = node(`
-    <div class="set-row ${s.done ? 'is-done' : ''}" data-set="${esc(s.id)}">
-      <button class="set-type ${t.cls}" data-a="cycle-type" type="button" title="${esc(t.label)} — tap to change">${esc(badge)}</button>
+    <div class="set-row ${s.done ? 'is-done' : ''} ${record ? 'is-pr' : ''}" data-set="${esc(s.id)}">
+      <button class="set-type ${t.cls}" data-a="cycle-type" type="button" title="${esc(typeTitle)}" aria-label="${esc(`Set ${badge}, ${typeTitle}`)}">${esc(badge)}</button>
       <span class="prev" title="Last session">${esc(prevText)}</span>
       ${fields}
       <div class="set-end">
@@ -519,12 +551,31 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
       const target = findEntry(w, entry.id)?.sets.find((x) => x.id === s.id);
       if (target) target.done = nowDone;
     });
-    row.classList.toggle('is-done', nowDone);
-    row.querySelector('[data-a="toggle-done"]').setAttribute('aria-pressed', String(nowDone));
+    // Redraw rather than toggle classes: the next-set rail moves on, and
+    // ticking can make this set — or untick a later one out of — a record.
+    redrawSiblings(ctx, entry.id);
     ctx.refreshStats();
+    const record = nowDone && workoutRecords(ctx.current()).get(s.id);
+    const current = () => findEntry(ctx.current(), entry.id)?.sets.find((x) => x.id === s.id) || s;
+    if (record) {
+      toast(`New PR · ${exerciseName(entry.exerciseId)} · ${recordText(record[0], current(), track, unit)}`, {
+        kind: 'pr',
+        duration: 4000,
+      });
+    }
+    if (!nowDone) return;
+    // In a superset you go straight on to the next exercise and rest only
+    // after the round, so the timer waits and the screen moves you along.
+    const w = ctx.current();
+    const at = w.entries.findIndex((x) => x.id === entry.id);
+    const { rest, next } = supersetNext(w.entries, at);
     const settings = getSettings();
-    if (nowDone && settings.restAuto && settings.restDefault > 0) {
-      startRest(settings.restDefault, exerciseName(entry.exerciseId));
+    if (rest && settings.restAuto && settings.restDefault > 0) {
+      startRest(settings.restDefault, entry.group ? `Superset ${(ctx.label || '').charAt(0)}` : exerciseName(entry.exerciseId));
+    }
+    if (next != null) {
+      const target = document.querySelector(`.entry[data-entry="${CSS.escape(w.entries[next].id)}"]`);
+      (target?.querySelector('.set-row.is-next') || target)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
 
@@ -568,6 +619,14 @@ function setRow(s, i, entry, ctx, track, last, rpeOn) {
   return row;
 }
 
+function recordText(kind, s, track, unit) {
+  if (kind === 'hold') return `${fmtDuration(s.sec)} hold`;
+  if (kind === 'distance') return fmtDistance(s.dist, unit);
+  const load = s.w != null ? fmtWeight(s.w, unit) : 'bodyweight';
+  if (kind === 'e1rm') return `est. 1RM ${fmtWeight(e1rm(s.w, s.r), unit)} from ${load} × ${s.r}`;
+  return kind === 'weight' ? `heaviest ever, ${load} × ${s.r}` : `${plural(s.r, 'rep')} at ${load}`;
+}
+
 function redrawSiblings(ctx, entryId) {
   // Cheap and correct: rebuild just this exercise's rows.
   const card = document.querySelector(`.entry[data-entry="${CSS.escape(entryId)}"]`);
@@ -576,9 +635,8 @@ function redrawSiblings(ctx, entryId) {
   if (!e) return ctx.drawEntries();
   const track = exerciseById(e.exerciseId)?.track || 'wr';
   const last = lastPerformance(e.exerciseId, ctx.id);
-  const rowsEl = card.querySelector('.set-rows');
-  rowsEl.innerHTML = '';
-  e.sets.forEach((s, i) => rowsEl.appendChild(setRow(s, i, e, ctx, track, last)));
+  const rpeOn = track !== 'cardio' && showsRpe(e, getSettings().trackRpe);
+  fillRows(card.querySelector('.set-rows'), e, ctx, track, last, rpeOn);
 }
 
 function rpeSelect(value) {

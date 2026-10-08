@@ -18,17 +18,26 @@ screen and works with the phone in airplane mode.
   chime and vibrate; it counts against a timestamp, so locking the phone mid-rest
   doesn't stall it
 - **Last-time reference** on every exercise and every set row, so you know what to beat
+- **Personal records** flagged the moment you tick the set — heaviest weight,
+  more reps than ever at a weight, longest hold or distance — and kept as a
+  rep-max table on each exercise's page
+- **Supersets**: tap the seam between two exercises to pair them (or chain more
+  for a giant set). Ticking a set moves you to the next exercise with no rest;
+  the timer starts after the last one in the round
 - Add your own exercises; hide the machines your gym doesn't have
 
 **Routines**
 - Save any finished workout as a template, or build one from scratch
 - Add a ready-made programme from the built-in templates (gym and home plans)
 - Starting a routine pre-fills the sets, reps and weights — you only correct what changed
+- **Suggested increases**: a routine loads what you lifted last time, and once
+  every target set hit its target reps it adds one step (2.5 kg / 5 lb by
+  default, adjustable in Settings)
 
 **Progress**
 - Training volume per week, working sets per week, a training-days calendar, and
   sets by muscle group
-- Per exercise: heaviest set over time and volume per session
+- Per exercise: estimated 1-rep max, heaviest set over time and volume per session
 - One time-range control (4 weeks → 1 year) scopes every chart at once
 - Every chart has a data-table view and a "share as image" button
 

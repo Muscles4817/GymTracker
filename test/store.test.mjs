@@ -19,6 +19,16 @@ import {
   workoutDuration,
   routineFromWorkout,
   showsRpe,
+  findRecords,
+  repMaxTable,
+  e1rm,
+  suggestTarget,
+  incrementStep,
+  normalizeGroups,
+  linkWithNext,
+  unlinkFromNext,
+  supersetLabels,
+  supersetNext,
 } from '../src/store.js';
 
 /** A done working set, unless overridden. */
@@ -296,4 +306,224 @@ test('showsRpe is safe on a missing or empty entry', () => {
   assert.equal(showsRpe(undefined, false), false);
   assert.equal(showsRpe({ sets: [] }, false), false);
   assert.equal(showsRpe(undefined, true), true);
+});
+
+// ---------------------------------------------------------------- records
+
+const kindsOf = (prior, sets, track = 'wr') => [...findRecords(prior, sets, track).values()];
+
+test('findRecords: a first session sets no records', () => {
+  assert.equal(findRecords([], [s({ w: 100, r: 5 })], 'wr').size, 0);
+});
+
+test('findRecords: a heavier set than ever is a weight record', () => {
+  const rec = findRecords([s({ w: 80, r: 5 })], [s({ id: 'a', w: 82.5, r: 3 })], 'wr');
+  assert.deepEqual(rec.get('a'), ['weight']); // 82.5 × 3 estimates below 80 × 5
+});
+
+test('findRecords: more reps at the same or lighter weight is a rep record', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 80, r: 6 })]), [['e1rm', 'reps']]);
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 70, r: 9 })]), [['reps']]);
+});
+
+test('findRecords: a set beaten by an earlier heavier-and-longer set is not a record', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 8 })], [s({ w: 70, r: 8 }), s({ w: 80, r: 8 })]), []);
+});
+
+test('findRecords: warm-ups neither claim nor set the bar', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 100, r: 5, type: 'wu' })]), []);
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 }), s({ w: 200, r: 5, type: 'wu' })], [s({ w: 90, r: 5 })]), [['weight', 'e1rm']]);
+});
+
+test('findRecords: unticked sets are ignored', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 100, r: 5, done: false })]), []);
+});
+
+test('findRecords: drop sets do not claim rep records', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 40, r: 15, type: 'd' })]), []);
+});
+
+test('findRecords: the session raises its own bar as it goes', () => {
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 85, r: 5 }), s({ w: 85, r: 5 })]), [['weight', 'e1rm']]);
+});
+
+test('findRecords: bodyweight reps count with no weight logged', () => {
+  assert.deepEqual(kindsOf([s({ r: 10 })], [s({ r: 12 })], 'br'), [['reps']]);
+  assert.deepEqual(kindsOf([s({ r: 10 })], [s({ w: 5, r: 6 })], 'br'), [['weight']]);
+});
+
+test('findRecords: holds and distances', () => {
+  assert.deepEqual(kindsOf([s({ sec: 60 })], [s({ sec: 75 })], 'dur'), [['hold']]);
+  assert.deepEqual(kindsOf([s({ dist: 5000 })], [s({ dist: 5200 })], 'cardio'), [['distance']]);
+  assert.deepEqual(kindsOf([s({ dist: 5000 })], [s({ dist: 5000 })], 'cardio'), []);
+});
+
+test('repMaxTable lists the heaviest weight for at least each rep count', () => {
+  const rows = repMaxTable([
+    s({ w: 100, r: 1, day: '2026-01-01' }),
+    s({ w: 90, r: 3, day: '2026-01-02' }),
+    s({ w: 80, r: 8, day: '2026-01-03' }),
+  ]);
+  assert.deepEqual(rows.map((r) => [r.reps, r.w]), [[1, 100], [3, 90], [8, 80]]);
+});
+
+test('repMaxTable drops a row a higher-rep set already proves', () => {
+  const rows = repMaxTable([s({ w: 90, r: 3, day: 'a' }), s({ w: 90, r: 5, day: 'b' })]);
+  assert.deepEqual(rows.map((r) => [r.reps, r.w]), [[5, 90]]);
+});
+
+test('repMaxTable keeps the first day a weight was reached', () => {
+  const rows = repMaxTable([s({ w: 90, r: 5, day: '2026-02-01' }), s({ w: 90, r: 5, day: '2026-01-01' })]);
+  assert.equal(rows[0].day, '2026-01-01');
+});
+
+test('repMaxTable ignores warm-ups and weightless sets', () => {
+  assert.deepEqual(repMaxTable([s({ w: 200, r: 1, type: 'wu', day: 'a' }), s({ r: 10, day: 'b' })]), []);
+});
+
+// ---------------------------------------------------------------- suggested increases
+
+const item = (over = {}) => ({ exerciseId: 'x', targetSets: 3, targetReps: 10, targetWeight: 40, ...over });
+
+test('suggestTarget uses the routine targets with no history', () => {
+  assert.deepEqual(suggestTarget(item(), null, 2.5), { w: 40, r: 10, up: false, from: null });
+});
+
+test('suggestTarget adds a step once every target set hit the target reps', () => {
+  const last = [s({ w: 60, r: 10 }), s({ w: 60, r: 11 }), s({ w: 60, r: 10 })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 62.5, r: 10, up: true, from: 60 });
+});
+
+test('suggestTarget repeats the weight when a set fell short', () => {
+  const last = [s({ w: 60, r: 10 }), s({ w: 60, r: 9 }), s({ w: 60, r: 8 })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 60, r: 10, up: false, from: null });
+});
+
+test('suggestTarget needs the target number of sets at the top weight', () => {
+  const last = [s({ w: 60, r: 10 }), s({ w: 60, r: 10 })];
+  assert.equal(suggestTarget(item(), last, 2.5).up, false);
+});
+
+test('suggestTarget ignores warm-ups and unticked sets', () => {
+  const last = [s({ w: 100, r: 10, type: 'wu' }), s({ w: 60, r: 10 }), s({ w: 60, r: 10 }), s({ w: 60, r: 10 }), s({ w: 90, r: 1, done: false })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 62.5, r: 10, up: true, from: 60 });
+});
+
+test('suggestTarget lets a higher routine target win', () => {
+  const last = [s({ w: 30, r: 10 }), s({ w: 30, r: 10 }), s({ w: 30, r: 10 })];
+  assert.deepEqual(suggestTarget(item(), last, 2.5), { w: 40, r: 10, up: false, from: null });
+});
+
+test('suggestTarget never steps up without a rep target to judge by', () => {
+  const last = [s({ w: 60, r: 12 })];
+  assert.deepEqual(suggestTarget(item({ targetReps: null, targetSets: 1 }), last, 2.5), { w: 60, r: null, up: false, from: null });
+});
+
+test('suggestTarget leaves unweighted work alone', () => {
+  assert.deepEqual(suggestTarget(item({ targetWeight: null }), [s({ r: 15 })], 2.5), { w: null, r: 10, up: false, from: null });
+});
+
+test('incrementStep defaults to 2.5 kg, or 5 lb when showing pounds', () => {
+  assert.equal(incrementStep({ unit: 'kg', increment: null }), 2.5);
+  assert.ok(Math.abs(incrementStep({ unit: 'lb', increment: null }) - 2.26796185) < 1e-6);
+  assert.equal(incrementStep({ unit: 'lb', increment: 2 }), 2);
+});
+
+// ---------------------------------------------------------------- supersets
+
+const items = (...groups) => groups.map((group, i) => ({ id: `i${i}`, group }));
+const groupsOf = (list) => {
+  // Compare shapes, not ids: which items share a group, and which have none.
+  const names = new Map();
+  return list.map((x) => (x.group ? names.get(x.group) ?? names.set(x.group, String.fromCharCode(97 + names.size)).get(x.group) : '-')).join('');
+};
+
+test('linkWithNext pairs two loose items', () => {
+  assert.equal(groupsOf(linkWithNext(items(null, null, null), 0)), 'aa-');
+});
+
+test('linkWithNext grows a superset into a giant set', () => {
+  assert.equal(groupsOf(linkWithNext(items('g', 'g', null), 1)), 'aaa');
+});
+
+test('linkWithNext merges two supersets', () => {
+  assert.equal(groupsOf(linkWithNext(items('g', 'g', 'h', 'h'), 1)), 'aaaa');
+});
+
+test('unlinkFromNext splits a superset and drops a lone leftover', () => {
+  assert.equal(groupsOf(unlinkFromNext(items('g', 'g', 'g'), 0)), '-aa');
+  assert.equal(groupsOf(unlinkFromNext(items('g', 'g'), 0)), '--');
+});
+
+test('unlinkFromNext does nothing across a boundary', () => {
+  assert.equal(groupsOf(unlinkFromNext(items('g', 'g', 'h', 'h'), 1)), 'aabb');
+});
+
+test('normalizeGroups clears singletons and re-ids a group split by a move', () => {
+  const list = normalizeGroups(items('g', null, 'g', 'g'));
+  assert.equal(list[0].group, null);
+  assert.equal(list[2].group, list[3].group);
+  assert.ok(list[2].group);
+});
+
+test('supersetLabels letters each superset and numbers its members', () => {
+  const labels = supersetLabels(items('g', 'g', null, 'h', 'h', 'h'));
+  assert.deepEqual([...labels.entries()], [[0, 'A1'], [1, 'A2'], [3, 'B1'], [4, 'B2'], [5, 'B3']]);
+});
+
+const entries = (...specs) =>
+  specs.map(([group, done]) => ({ group, sets: done.map((d) => s({ done: d })) }));
+
+test('supersetNext: a loose exercise just rests', () => {
+  assert.deepEqual(supersetNext(entries([null, [true, false]]), 0), { rest: true, next: null });
+});
+
+test('supersetNext moves on to the next exercise without resting', () => {
+  assert.deepEqual(supersetNext(entries(['g', [true, false]], ['g', [false, false]]), 0), { rest: false, next: 1 });
+});
+
+test('supersetNext rests after the last exercise and goes round to the first', () => {
+  assert.deepEqual(supersetNext(entries(['g', [true, false]], ['g', [true, false]]), 1), { rest: true, next: 0 });
+});
+
+test('supersetNext skips exercises with nothing left to do', () => {
+  const list = entries(['g', [true, false]], ['g', [true]], ['g', [false]]);
+  assert.deepEqual(supersetNext(list, 0), { rest: false, next: 2 });
+});
+
+test('supersetNext rests in place once the others are finished', () => {
+  assert.deepEqual(supersetNext(entries(['g', [true, false]], ['g', [true]]), 0), { rest: true, next: null });
+});
+
+test('routineFromWorkout keeps supersets', () => {
+  const w = workout([{ ...entry('a', [s({ w: 10, r: 5 })]), group: 'g' }, { ...entry('b', [s({ w: 10, r: 5 })]), group: 'g' }]);
+  const r = routineFromWorkout(w);
+  assert.deepEqual(r.items.map((i) => i.group), ['g', 'g']);
+});
+
+// ---------------------------------------------------------------- estimated 1RM
+
+test('e1rm is the weight itself for a single', () => {
+  assert.equal(e1rm(100, 1), 100);
+});
+
+test('e1rm follows Epley for multiple reps', () => {
+  assert.equal(e1rm(90, 5), 105);
+  assert.equal(e1rm(60, 10), 80);
+});
+
+test('e1rm gives nothing past 12 reps or without a weight', () => {
+  assert.equal(e1rm(40, 15), null);
+  assert.equal(e1rm(null, 5), null);
+  assert.equal(e1rm(0, 5), null);
+  assert.equal(e1rm(60, 0), null);
+});
+
+test('findRecords: a better estimate at a lighter weight is an e1RM record', () => {
+  // 90 × 8 estimates 114 against 100 × 3's 110.
+  assert.deepEqual(kindsOf([s({ w: 100, r: 3 })], [s({ w: 90, r: 8 })]), [['e1rm', 'reps']]);
+});
+
+test('findRecords: bodyweight work never claims an e1RM record', () => {
+  assert.deepEqual(kindsOf([s({ w: 5, r: 5 })], [s({ w: 5, r: 8 })], 'br'), [['reps']]);
 });

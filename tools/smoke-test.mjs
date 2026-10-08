@@ -511,6 +511,14 @@ async function main() {
   const heaviest = await evaluate('document.querySelectorAll(".stat-value")[1].textContent');
   if (heaviest !== '80') fail('Exercise stats', `heaviest reads "${heaviest}", expected 80`);
   else ok('Exercise page stats', `heaviest 80 kg, ${exCharts} chart(s)`);
+
+  // Best working set was 80 × 8, which Epley puts at 101.3 kg.
+  const est = await evaluate(`({
+    tile: [...document.querySelectorAll('.stat')].find(t => t.textContent.includes('est. 1RM'))?.querySelector('.stat-value').textContent,
+    chart: [...document.querySelectorAll('.chart-card h3, .chart-card .chart-title')].some(h => h.textContent.includes('Estimated 1-rep max')),
+  })`);
+  if (est.tile !== '101.3' || !est.chart) fail('Estimated 1RM', JSON.stringify(est));
+  else ok('Estimated 1RM tile and chart', `${est.tile} kg from 80 × 8`);
   await shot('exercise');
 
   // ------------------------------------------------------------- 11. library + routines + settings
@@ -657,15 +665,79 @@ ${timedRoundTrip}`);
         name: w.name,
         entries: w.entries.length,
         prefilled: w.entries[0].sets.map(x => [x.w, x.r]),
+        hint: w.entries[0].hint || null,
+        hintShown: !!document.querySelector('.entry .entry-hint'),
       };
     })()`, 'routine');
   if (routine.name !== 'Push Day A' || routine.entries !== 2) {
     fail('Routine', `started as ${JSON.stringify(routine)}`);
-  } else if (routine.prefilled[0][0] !== 80) {
-    fail('Routine prefill', `first set is ${JSON.stringify(routine.prefilled[0])}, expected 80 kg`);
+  } else if (routine.prefilled[0][0] !== 82.5 || routine.hint?.from !== 80 || !routine.hintShown) {
+    // Last time was 80 × 8 against a target of 8, so the suggestion steps up.
+    fail('Routine prefill', `first set ${JSON.stringify(routine.prefilled[0])}, hint ${JSON.stringify(routine.hint)}, shown ${routine.hintShown}`);
   } else {
-    ok('Routine saved and started', `"${routine.name}", ${routine.entries} exercises, sets prefilled at 80 kg`);
+    ok('Routine started with a suggested step up', `"${routine.name}", 80 → 82.5 kg after hitting every rep last time`);
   }
+
+  // Beat the bench's best through the real inputs: the set should be marked,
+  // and announced, the moment it is ticked.
+  await evaluate(`
+    (() => {
+      const row = document.querySelector('.entry .set-row');
+      const input = row.querySelector('[data-f="w"]');
+      input.value = String(parseFloat(input.value) + 10);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`, 'raise weight');
+  await sleep(300);
+  await evaluate("document.querySelector('.entry .set-row [data-a=\"toggle-done\"]').click()");
+  await sleep(400);
+  const pr = await evaluate(`({
+    marked: !!document.querySelector('.entry .set-row.is-pr'),
+    toast: document.querySelector('.toast-pr')?.textContent.trim() || null,
+  })`, 'pr');
+  if (!pr.marked || !pr.toast) {
+    fail('Personal record', JSON.stringify(pr));
+  } else {
+    ok('A heavier set is marked and announced as a PR', pr.toast);
+  }
+  await shot('personal-record');
+
+  // Superset the two exercises: ticking A1 should hold the rest timer and
+  // move you on, and ticking A2 should start it.
+  const stopRest = `(async () => (await import(new URL('src/timer.js', location.href))).stopRest())()`;
+  await evaluate("document.querySelector('.ss-link').click()");
+  await sleep(400);
+  const linked = await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      const g = s.activeWorkout().entries.map(e => e.group);
+      return { same: !!g[0] && g[0] === g[1], tags: [...document.querySelectorAll('.entry .ss-tag')].map(t => t.textContent) };
+    })()`, 'link superset');
+  await evaluate(stopRest, 'stop rest');
+  await evaluate("document.querySelectorAll('.entry')[0].querySelector('[data-a=\"add-set\"]').click()");
+  await sleep(400);
+  await evaluate("[...document.querySelectorAll('.entry')[0].querySelectorAll('[data-a=\"toggle-done\"]')].pop().click()");
+  await sleep(500);
+  const restAfterA1 = await evaluate("!document.getElementById('rest-bar').hidden");
+  await evaluate("document.querySelectorAll('.entry')[1].querySelector('[data-a=\"toggle-done\"]').click()");
+  await sleep(500);
+  const restAfterA2 = await evaluate("!document.getElementById('rest-bar').hidden");
+  if (!linked.same || linked.tags.join() !== 'A1,A2') {
+    fail('Superset link', JSON.stringify(linked));
+  } else if (restAfterA1 || !restAfterA2) {
+    fail('Superset rest', `rest after A1: ${restAfterA1}, after A2: ${restAfterA2}`);
+  } else {
+    ok('Supersets link, and rest waits for the end of the round', linked.tags.join(' + '));
+  }
+  await shot('superset');
+  await evaluate(stopRest, 'stop rest');
+
+  await evaluate("location.hash = '#/exercise/barbell-bench-press'");
+  await waitFor('.view', 3000, 'exercise detail');
+  await sleep(300);
+  const recordRows = await evaluate("document.querySelectorAll('.record-list li').length");
+  if (!recordRows) fail('Records card', 'no rows on the bench press page');
+  else ok('Exercise page lists personal records', `${recordRows} rep-max row(s)`);
+  await shot('exercise-records');
 
   // With a session running, routines can be browsed but nothing offers to start.
   await evaluate('location.hash = "#/routines"');
@@ -744,12 +816,14 @@ ${timedRoundTrip}`);
     fail('Routine templates', `added ${templates.added} of ${templates.catalogue}`);
   } else if (templates.started !== 'Workout 1 – Chest' || templates.entries !== 7) {
     fail('Template start', JSON.stringify(templates));
-  } else if (templates.firstSets !== 4 || templates.firstPrefill[0] !== 40 || templates.firstPrefill[1] !== 10) {
+  } else if (templates.firstSets !== 4 || templates.firstPrefill[0] !== 80 || templates.firstPrefill[1] !== 10) {
+    // The template starts bench at 40 kg, but you last benched 80 × 8 — short
+    // of its 10 reps — so it loads 80 rather than stepping up or going back.
     fail('Template prefill', `first entry ${templates.firstSets} sets, prefill ${JSON.stringify(templates.firstPrefill)}`);
   } else {
     ok(
       'Routine templates added and started',
-      `${templates.added} routines, "${templates.started}" prefilled 4 × 10 @ 40 kg`
+      `${templates.added} routines, "${templates.started}" prefilled 4 × 10 @ 80 kg from last time`
     );
   }
   await evaluate(`
