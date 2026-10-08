@@ -1,12 +1,13 @@
 // The in-gym screen: start a session, log sets, rest, finish, share.
 
 import {
-  activeWorkout, startWorkout, startFromRoutine, updateWorkout, finishWorkout,
+  activeWorkout, startWorkout, updateWorkout, finishWorkout,
   deleteWorkout, workoutById, newSet, newEntry, exerciseById, exerciseName,
   workoutVolume, workingSets, workoutDuration, lastPerformance, allRoutines,
   completedWorkouts, getSettings, isSetFilled, showsRpe,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
+import { openRoutinePreview } from './routines.js';
 import {
   node, esc, icon, toast, confirmDialog, promptDialog, emptyState, on,
 } from '../ui.js';
@@ -70,9 +71,10 @@ function startScreen(rerender) {
             ? `<div class="routine-grid">${routines
                 .map(
                   (r) => `
-              <button class="routine-chip" data-a="start-routine" data-id="${esc(r.id)}" type="button">
+              <button class="routine-chip" data-a="preview-routine" data-id="${esc(r.id)}" type="button">
                 <span class="routine-name">${esc(r.name)}</span>
                 <span class="routine-meta">${plural(r.items.length, 'exercise')}</span>
+                ${icon('chevron', 'routine-chip-go')}
               </button>`
                 )
                 .join('')}</div>`
@@ -123,11 +125,7 @@ function startScreen(rerender) {
     rerender();
   });
 
-  on(wrap, 'click', '[data-a="start-routine"]', async (ev, btn) => {
-    primeAudio();
-    await startFromRoutine(btn.dataset.id);
-    rerender();
-  });
+  on(wrap, 'click', '[data-a="preview-routine"]', (ev, btn) => openRoutinePreview(btn.dataset.id));
 
   return wrap;
 }
