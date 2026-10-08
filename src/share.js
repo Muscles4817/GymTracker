@@ -118,11 +118,17 @@ export function formatExerciseProgress(exerciseId) {
     const best = withWeight.reduce((a, s) => (s.topWeight > a.topWeight ? s : a));
     lines.push(`Best set: ${fmtWeight(best.topWeight, unit)} × ${best.topReps ?? '?'} on ${fmtDateFull(best.day)}`);
   }
+  const withE1rm = exerciseById(exerciseId)?.track === 'wr' ? series.filter((s) => s.e1rm != null) : [];
+  if (withE1rm.length) {
+    const best = withE1rm.reduce((a, s) => (s.e1rm > a.e1rm ? s : a));
+    lines.push(`Best est. 1RM: ${fmtWeight(best.e1rm, unit)} (from ${fmtWeight(best.e1rmSet.w, unit)} × ${best.e1rmSet.r}, ${fmtDateFull(best.day)})`);
+  }
   lines.push(`${plural(series.length, 'session')} logged`);
   lines.push('');
   for (const s of series.slice(-12)) {
     const bits = [];
     if (s.topWeight != null) bits.push(`top ${fmtWeight(s.topWeight, unit)} × ${s.topReps ?? '?'}`);
+    if (s.e1rm != null && withE1rm.length) bits.push(`est. 1RM ${fmtWeight(s.e1rm, unit)}`);
     if (s.distance) bits.push(fmtDistance(s.distance, unit));
     if (s.seconds) bits.push(fmtDuration(s.seconds));
     bits.push(plural(s.sets, 'set'));

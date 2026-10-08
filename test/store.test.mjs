@@ -21,6 +21,7 @@ import {
   showsRpe,
   findRecords,
   repMaxTable,
+  e1rm,
   suggestTarget,
   incrementStep,
   normalizeGroups,
@@ -317,11 +318,11 @@ test('findRecords: a first session sets no records', () => {
 
 test('findRecords: a heavier set than ever is a weight record', () => {
   const rec = findRecords([s({ w: 80, r: 5 })], [s({ id: 'a', w: 82.5, r: 3 })], 'wr');
-  assert.deepEqual(rec.get('a'), ['weight']);
+  assert.deepEqual(rec.get('a'), ['weight']); // 82.5 × 3 estimates below 80 × 5
 });
 
 test('findRecords: more reps at the same or lighter weight is a rep record', () => {
-  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 80, r: 6 })]), [['reps']]);
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 80, r: 6 })]), [['e1rm', 'reps']]);
   assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 70, r: 9 })]), [['reps']]);
 });
 
@@ -331,7 +332,7 @@ test('findRecords: a set beaten by an earlier heavier-and-longer set is not a re
 
 test('findRecords: warm-ups neither claim nor set the bar', () => {
   assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 100, r: 5, type: 'wu' })]), []);
-  assert.deepEqual(kindsOf([s({ w: 80, r: 5 }), s({ w: 200, r: 5, type: 'wu' })], [s({ w: 90, r: 5 })]), [['weight']]);
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 }), s({ w: 200, r: 5, type: 'wu' })], [s({ w: 90, r: 5 })]), [['weight', 'e1rm']]);
 });
 
 test('findRecords: unticked sets are ignored', () => {
@@ -343,7 +344,7 @@ test('findRecords: drop sets do not claim rep records', () => {
 });
 
 test('findRecords: the session raises its own bar as it goes', () => {
-  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 85, r: 5 }), s({ w: 85, r: 5 })]), [['weight']]);
+  assert.deepEqual(kindsOf([s({ w: 80, r: 5 })], [s({ w: 85, r: 5 }), s({ w: 85, r: 5 })]), [['weight', 'e1rm']]);
 });
 
 test('findRecords: bodyweight reps count with no weight logged', () => {
@@ -498,4 +499,31 @@ test('routineFromWorkout keeps supersets', () => {
   const w = workout([{ ...entry('a', [s({ w: 10, r: 5 })]), group: 'g' }, { ...entry('b', [s({ w: 10, r: 5 })]), group: 'g' }]);
   const r = routineFromWorkout(w);
   assert.deepEqual(r.items.map((i) => i.group), ['g', 'g']);
+});
+
+// ---------------------------------------------------------------- estimated 1RM
+
+test('e1rm is the weight itself for a single', () => {
+  assert.equal(e1rm(100, 1), 100);
+});
+
+test('e1rm follows Epley for multiple reps', () => {
+  assert.equal(e1rm(90, 5), 105);
+  assert.equal(e1rm(60, 10), 80);
+});
+
+test('e1rm gives nothing past 12 reps or without a weight', () => {
+  assert.equal(e1rm(40, 15), null);
+  assert.equal(e1rm(null, 5), null);
+  assert.equal(e1rm(0, 5), null);
+  assert.equal(e1rm(60, 0), null);
+});
+
+test('findRecords: a better estimate at a lighter weight is an e1RM record', () => {
+  // 90 × 8 estimates 114 against 100 × 3's 110.
+  assert.deepEqual(kindsOf([s({ w: 100, r: 3 })], [s({ w: 90, r: 8 })]), [['e1rm', 'reps']]);
+});
+
+test('findRecords: bodyweight work never claims an e1RM record', () => {
+  assert.deepEqual(kindsOf([s({ w: 5, r: 5 })], [s({ w: 5, r: 8 })], 'br'), [['reps']]);
 });

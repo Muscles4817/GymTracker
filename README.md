@@ -37,7 +37,7 @@ screen and works with the phone in airplane mode.
 **Progress**
 - Training volume per week, working sets per week, a training-days calendar, and
   sets by muscle group
-- Per exercise: heaviest set over time and volume per session
+- Per exercise: estimated 1-rep max, heaviest set over time and volume per session
 - One time-range control (4 weeks → 1 year) scopes every chart at once
 - Every chart has a data-table view and a "share as image" button
 

@@ -5,7 +5,7 @@ import {
   deleteWorkout, workoutById, newSet, newEntry, exerciseById, exerciseName,
   workoutVolume, workingSets, workoutDuration, lastPerformance, allRoutines,
   completedWorkouts, getSettings, isSetFilled, showsRpe, workoutRecords, RECORD_LABELS,
-  normalizeGroups, supersetLabels, supersetNext,
+  normalizeGroups, supersetLabels, supersetNext, e1rm,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import { openRoutinePreview } from './routines.js';
@@ -623,6 +623,7 @@ function recordText(kind, s, track, unit) {
   if (kind === 'hold') return `${fmtDuration(s.sec)} hold`;
   if (kind === 'distance') return fmtDistance(s.dist, unit);
   const load = s.w != null ? fmtWeight(s.w, unit) : 'bodyweight';
+  if (kind === 'e1rm') return `est. 1RM ${fmtWeight(e1rm(s.w, s.r), unit)} from ${load} × ${s.r}`;
   return kind === 'weight' ? `heaviest ever, ${load} × ${s.r}` : `${plural(s.r, 'rep')} at ${load}`;
 }
 

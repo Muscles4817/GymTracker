@@ -406,6 +406,15 @@ export function routineFromWorkout(workout, name) {
 
 // ---------------------------------------------------------------- stats
 
+/** Estimated one-rep max in kg (Epley). Past 12 reps the formula drifts
+    too far to be worth showing, so those sets give no estimate. */
+export function e1rm(w, r) {
+  if (w == null || !(w > 0) || !(r >= 1) || r > 12) return null;
+  return r === 1 ? w : w * (1 + r / 30);
+}
+
+const setE1rm = (s) => (s.type === 'wu' ? null : e1rm(s.w, s.r));
+
 /** Volume in kg. Warm-ups excluded — they distort the trend line. */
 export function setVolume(s) {
   if (s.type === 'wu') return 0;
@@ -452,6 +461,7 @@ export function exerciseSeries(exerciseId) {
       if (!done.length) continue;
       const withWeight = done.filter((s) => s.w != null);
       const top = withWeight.reduce((a, s) => (a == null || s.w > a.w ? s : a), null);
+      const strongest = done.reduce((a, s) => ((setE1rm(s) ?? 0) > (a ? setE1rm(a) : 0) ? s : a), null);
       out.push({
         day: w.day,
         workoutId: w.id,
@@ -460,6 +470,8 @@ export function exerciseSeries(exerciseId) {
         volume: done.reduce((n, s) => n + setVolume(s), 0),
         topWeight: top ? top.w : null,
         topReps: top ? top.r : null,
+        e1rm: strongest ? setE1rm(strongest) : null,
+        e1rmSet: strongest ? { w: strongest.w, r: strongest.r } : null,
         seconds: done.reduce((n, s) => n + (s.sec || 0), 0) || null,
         distance: done.reduce((n, s) => n + (s.dist || 0), 0) || null,
       });
@@ -554,6 +566,7 @@ function currentStreakWeeks(done) {
 
 export const RECORD_LABELS = {
   weight: 'Heaviest',
+  e1rm: 'Best est. 1RM',
   reps: 'Rep record',
   hold: 'Longest hold',
   distance: 'Longest distance',
@@ -582,8 +595,12 @@ export function findRecords(prior, sets, track) {
       // Bodyweight work logs added load only, so no weight means bodyweight.
       const w = s.w ?? (track === 'br' ? 0 : null);
       if (w != null && s.r >= 1) {
+        const est = track === 'wr' ? setE1rm(s) : null;
+        const beatsEst = est != null && est > max(setE1rm);
         if (w > 0 && w > max((p) => p.w)) kinds.push('weight');
-        else if (
+        if (beatsEst) kinds.push('e1rm');
+        if (
+          !kinds.includes('weight') &&
           s.type !== 'd' &&
           !pool.some((p) => (p.w ?? (track === 'br' ? 0 : -Infinity)) >= w && (p.r ?? 0) >= s.r)
         ) {
@@ -651,6 +668,7 @@ export function exerciseRecords(exerciseId) {
   const top = (f) =>
     sets.reduce((a, s) => (f(s) > 0 && (!a || f(s) > f(a) || (f(s) === f(a) && s.day < a.day)) ? s : a), null);
   return {
+    e1rm: top((s) => (exerciseById(exerciseId)?.track === 'wr' ? setE1rm(s) ?? 0 : 0)),
     repMaxes: repMaxTable(sets),
     maxReps: top((s) => s.r),
     hold: top((s) => s.sec),

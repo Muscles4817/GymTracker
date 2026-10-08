@@ -511,6 +511,14 @@ async function main() {
   const heaviest = await evaluate('document.querySelectorAll(".stat-value")[1].textContent');
   if (heaviest !== '80') fail('Exercise stats', `heaviest reads "${heaviest}", expected 80`);
   else ok('Exercise page stats', `heaviest 80 kg, ${exCharts} chart(s)`);
+
+  // Best working set was 80 × 8, which Epley puts at 101.3 kg.
+  const est = await evaluate(`({
+    tile: [...document.querySelectorAll('.stat')].find(t => t.textContent.includes('est. 1RM'))?.querySelector('.stat-value').textContent,
+    chart: [...document.querySelectorAll('.chart-card h3, .chart-card .chart-title')].some(h => h.textContent.includes('Estimated 1-rep max')),
+  })`);
+  if (est.tile !== '101.3' || !est.chart) fail('Estimated 1RM', JSON.stringify(est));
+  else ok('Estimated 1RM tile and chart', `${est.tile} kg from 80 × 8`);
   await shot('exercise');
 
   // ------------------------------------------------------------- 11. library + routines + settings
