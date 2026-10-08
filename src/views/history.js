@@ -2,7 +2,7 @@
 
 import {
   completedWorkouts, workoutById, workingSets, workoutVolume, workoutDuration,
-  workoutReps, deleteWorkout, saveWorkout, activeWorkout, exerciseById, workoutRecords, RECORD_LABELS,
+  workoutReps, deleteWorkout, saveWorkout, activeWorkout, exerciseById, workoutRecords, RECORD_LABELS, supersetLabels,
   exerciseName, getSettings, saveRoutine, routineFromWorkout,
 } from '../store.js';
 import { node, esc, icon, emptyState, confirmDialog, promptDialog, toast, on } from '../ui.js';
@@ -134,18 +134,19 @@ export function workoutDetailView(id) {
   );
 
   const records = workoutRecords(w);
-  for (const e of w.entries) {
+  const labels = supersetLabels(w.entries);
+  w.entries.forEach((e, i) => {
     const ex = exerciseById(e.exerciseId);
     const track = ex?.track || 'wr';
     const done = e.sets.filter((s) => s.done);
-    if (!done.length) continue;
+    if (!done.length) return;
     el.appendChild(
       node(`
       <section class="card entry">
         <header class="entry-head">
           <div class="entry-title">
             <a class="entry-name" href="#/exercise/${esc(e.exerciseId)}">${esc(exerciseName(e.exerciseId))}</a>
-            <span class="entry-sub">${plural(done.length, 'set')}${
+            <span class="entry-sub">${labels.has(i) ? `Superset ${labels.get(i)} · ` : ''}${plural(done.length, 'set')}${
               ex ? ` · ${esc(ex.equipment)}` : ''
             }</span>
           </div>
@@ -156,7 +157,7 @@ export function workoutDetailView(id) {
         </ol>
       </section>`)
     );
-  }
+  });
 
   el.appendChild(
     node(`

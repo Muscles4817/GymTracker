@@ -470,6 +470,43 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 
 /* ------------------------------------------------------------------ entries / sets */
 
+/* ------------------------------------------------------------ supersets */
+
+.entries { display: flex; flex-direction: column; }
+/* The seam between two cards doubles as the control that joins them. Linked,
+   it becomes part of a continuous accent rail down the superset's cards. */
+.ss-link {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ss-link .icon { width: 1rem; height: 1rem; }
+.ss-link.is-linked { color: var(--accent); }
+.entry.in-superset { border-left: 4px solid var(--accent); }
+.routine-item.in-superset { padding-left: 10px; border-left: 3px solid var(--accent); }
+.routine-items .ss-link { display: flex; margin: 0 auto; }
+.ss-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  vertical-align: 0.1em;
+}
+
 .entry-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .entry-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .entry-name { font-weight: 650; font-size: var(--fs-base); }

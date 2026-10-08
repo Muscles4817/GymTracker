@@ -693,6 +693,36 @@ ${timedRoundTrip}`);
   }
   await shot('personal-record');
 
+  // Superset the two exercises: ticking A1 should hold the rest timer and
+  // move you on, and ticking A2 should start it.
+  const stopRest = `(async () => (await import(new URL('src/timer.js', location.href))).stopRest())()`;
+  await evaluate("document.querySelector('.ss-link').click()");
+  await sleep(400);
+  const linked = await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      const g = s.activeWorkout().entries.map(e => e.group);
+      return { same: !!g[0] && g[0] === g[1], tags: [...document.querySelectorAll('.entry .ss-tag')].map(t => t.textContent) };
+    })()`, 'link superset');
+  await evaluate(stopRest, 'stop rest');
+  await evaluate("document.querySelectorAll('.entry')[0].querySelector('[data-a=\"add-set\"]').click()");
+  await sleep(400);
+  await evaluate("[...document.querySelectorAll('.entry')[0].querySelectorAll('[data-a=\"toggle-done\"]')].pop().click()");
+  await sleep(500);
+  const restAfterA1 = await evaluate("!document.getElementById('rest-bar').hidden");
+  await evaluate("document.querySelectorAll('.entry')[1].querySelector('[data-a=\"toggle-done\"]').click()");
+  await sleep(500);
+  const restAfterA2 = await evaluate("!document.getElementById('rest-bar').hidden");
+  if (!linked.same || linked.tags.join() !== 'A1,A2') {
+    fail('Superset link', JSON.stringify(linked));
+  } else if (restAfterA1 || !restAfterA2) {
+    fail('Superset rest', `rest after A1: ${restAfterA1}, after A2: ${restAfterA2}`);
+  } else {
+    ok('Supersets link, and rest waits for the end of the round', linked.tags.join(' + '));
+  }
+  await shot('superset');
+  await evaluate(stopRest, 'stop rest');
+
   await evaluate("location.hash = '#/exercise/barbell-bench-press'");
   await waitFor('.view', 3000, 'exercise detail');
   await sleep(300);

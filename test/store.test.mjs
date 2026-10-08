@@ -23,6 +23,11 @@ import {
   repMaxTable,
   suggestTarget,
   incrementStep,
+  normalizeGroups,
+  linkWithNext,
+  unlinkFromNext,
+  supersetLabels,
+  supersetNext,
 } from '../src/store.js';
 
 /** A done working set, unless overridden. */
@@ -421,4 +426,76 @@ test('incrementStep defaults to 2.5 kg, or 5 lb when showing pounds', () => {
   assert.equal(incrementStep({ unit: 'kg', increment: null }), 2.5);
   assert.ok(Math.abs(incrementStep({ unit: 'lb', increment: null }) - 2.26796185) < 1e-6);
   assert.equal(incrementStep({ unit: 'lb', increment: 2 }), 2);
+});
+
+// ---------------------------------------------------------------- supersets
+
+const items = (...groups) => groups.map((group, i) => ({ id: `i${i}`, group }));
+const groupsOf = (list) => {
+  // Compare shapes, not ids: which items share a group, and which have none.
+  const names = new Map();
+  return list.map((x) => (x.group ? names.get(x.group) ?? names.set(x.group, String.fromCharCode(97 + names.size)).get(x.group) : '-')).join('');
+};
+
+test('linkWithNext pairs two loose items', () => {
+  assert.equal(groupsOf(linkWithNext(items(null, null, null), 0)), 'aa-');
+});
+
+test('linkWithNext grows a superset into a giant set', () => {
+  assert.equal(groupsOf(linkWithNext(items('g', 'g', null), 1)), 'aaa');
+});
+
+test('linkWithNext merges two supersets', () => {
+  assert.equal(groupsOf(linkWithNext(items('g', 'g', 'h', 'h'), 1)), 'aaaa');
+});
+
+test('unlinkFromNext splits a superset and drops a lone leftover', () => {
+  assert.equal(groupsOf(unlinkFromNext(items('g', 'g', 'g'), 0)), '-aa');
+  assert.equal(groupsOf(unlinkFromNext(items('g', 'g'), 0)), '--');
+});
+
+test('unlinkFromNext does nothing across a boundary', () => {
+  assert.equal(groupsOf(unlinkFromNext(items('g', 'g', 'h', 'h'), 1)), 'aabb');
+});
+
+test('normalizeGroups clears singletons and re-ids a group split by a move', () => {
+  const list = normalizeGroups(items('g', null, 'g', 'g'));
+  assert.equal(list[0].group, null);
+  assert.equal(list[2].group, list[3].group);
+  assert.ok(list[2].group);
+});
+
+test('supersetLabels letters each superset and numbers its members', () => {
+  const labels = supersetLabels(items('g', 'g', null, 'h', 'h', 'h'));
+  assert.deepEqual([...labels.entries()], [[0, 'A1'], [1, 'A2'], [3, 'B1'], [4, 'B2'], [5, 'B3']]);
+});
+
+const entries = (...specs) =>
+  specs.map(([group, done]) => ({ group, sets: done.map((d) => s({ done: d })) }));
+
+test('supersetNext: a loose exercise just rests', () => {
+  assert.deepEqual(supersetNext(entries([null, [true, false]]), 0), { rest: true, next: null });
+});
+
+test('supersetNext moves on to the next exercise without resting', () => {
+  assert.deepEqual(supersetNext(entries(['g', [true, false]], ['g', [false, false]]), 0), { rest: false, next: 1 });
+});
+
+test('supersetNext rests after the last exercise and goes round to the first', () => {
+  assert.deepEqual(supersetNext(entries(['g', [true, false]], ['g', [true, false]]), 1), { rest: true, next: 0 });
+});
+
+test('supersetNext skips exercises with nothing left to do', () => {
+  const list = entries(['g', [true, false]], ['g', [true]], ['g', [false]]);
+  assert.deepEqual(supersetNext(list, 0), { rest: false, next: 2 });
+});
+
+test('supersetNext rests in place once the others are finished', () => {
+  assert.deepEqual(supersetNext(entries(['g', [true, false]], ['g', [true]]), 0), { rest: true, next: null });
+});
+
+test('routineFromWorkout keeps supersets', () => {
+  const w = workout([{ ...entry('a', [s({ w: 10, r: 5 })]), group: 'g' }, { ...entry('b', [s({ w: 10, r: 5 })]), group: 'g' }]);
+  const r = routineFromWorkout(w);
+  assert.deepEqual(r.items.map((i) => i.group), ['g', 'g']);
 });

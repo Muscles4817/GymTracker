@@ -192,7 +192,7 @@ export async function startFromRoutine(routineId) {
     const n = Math.max(1, Number(it.targetSets) || 1);
     const next = routineTarget(it);
     const sets = Array.from({ length: n }, () => newSet({ w: next.w, r: next.r }));
-    const entry = { ...newEntry(it.exerciseId, sets), notes: it.notes || '' };
+    const entry = { ...newEntry(it.exerciseId, sets), notes: it.notes || '', group: it.group || null };
     if (next.up) entry.hint = { from: next.from, to: next.w };
     return entry;
   });
@@ -255,6 +255,7 @@ export async function finishWorkout(id) {
       e.sets = e.sets.filter((s) => s.done || isSetFilled(s));
     });
     w.entries = w.entries.filter((e) => e.sets.length > 0);
+    normalizeGroups(w.entries);
     w.entries.forEach((e) => e.sets.forEach((s) => { if (isSetFilled(s)) s.done = true; }));
     w.status = 'done';
     w.endedAt = Date.now();
@@ -275,6 +276,87 @@ export const isSetFilled = (s) =>
     regardless, so turning the setting off never hides data you logged. */
 export const showsRpe = (entry, trackRpe) =>
   !!trackRpe || (entry?.sets || []).some((s) => s.rpe != null);
+
+// ---------------------------------------------------------------- supersets
+
+/* A superset is a run of consecutive entries sharing a `group` id. The same
+   functions serve workout entries and routine items. */
+
+/** Tidy groups after any reorder or removal: a run of one is no superset,
+    and an id that turns up again after a gap starts a new group. Mutates. */
+export function normalizeGroups(list) {
+  const seen = new Set();
+  let i = 0;
+  while (i < list.length) {
+    const g = list[i].group;
+    if (!g) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < list.length && list[j + 1].group === g) j++;
+    const id = seen.has(g) ? uid() : g;
+    seen.add(g);
+    for (let k = i; k <= j; k++) list[k].group = j > i ? id : null;
+    i = j + 1;
+  }
+  return list;
+}
+
+/** Join item i and everything grouped with item i + 1 into one superset. */
+export function linkWithNext(list, i) {
+  const a = list[i];
+  const b = list[i + 1];
+  if (!a || !b) return list;
+  const id = a.group || b.group || uid();
+  const joining = b.group;
+  a.group = id;
+  b.group = id;
+  for (let k = i + 2; joining && k < list.length && list[k].group === joining; k++) list[k].group = id;
+  return normalizeGroups(list);
+}
+
+/** Split the superset between item i and item i + 1. */
+export function unlinkFromNext(list, i) {
+  const g = list[i]?.group;
+  if (!g || list[i + 1]?.group !== g) return list;
+  const id = uid();
+  for (let k = i + 1; k < list.length && list[k].group === g; k++) list[k].group = id;
+  return normalizeGroups(list);
+}
+
+/** "A1", "A2", "B1"… by index, for items that are in a superset. */
+export function supersetLabels(list) {
+  const out = new Map();
+  let letter = -1;
+  let pos = 0;
+  list.forEach((x, i) => {
+    if (!x.group) return;
+    if (x.group !== list[i - 1]?.group) {
+      letter++;
+      pos = 0;
+    }
+    out.set(i, `${String.fromCharCode(65 + (letter % 26))}${++pos}`);
+  });
+  return out;
+}
+
+/** Where to go after ticking a set of entry i. Inside a superset you move on
+    to the next exercise in it that still has sets to do, without resting;
+    from the last one you rest, then go round to the first again.
+    Returns { rest, next } where next is an entry index or null. */
+export function supersetNext(entries, i) {
+  const g = entries[i]?.group;
+  if (!g) return { rest: true, next: null };
+  let start = i;
+  while (entries[start - 1]?.group === g) start--;
+  let end = i;
+  while (entries[end + 1]?.group === g) end++;
+  const pending = (k) => entries[k].sets.some((s) => !s.done);
+  for (let k = i + 1; k <= end; k++) if (pending(k)) return { rest: false, next: k };
+  for (let k = start; k <= i; k++) if (pending(k)) return { rest: true, next: k === i ? null : k };
+  return { rest: true, next: null };
+}
 
 // ---------------------------------------------------------------- routines
 
@@ -316,6 +398,7 @@ export function routineFromWorkout(workout, name) {
         targetReps: top?.r ?? null,
         targetWeight: top?.w ?? null,
         notes: '',
+        group: e.group || null,
       };
     }),
   };

@@ -1,5 +1,7 @@
 // DOM helpers, icons, toasts and modal dialogs.
 
+import { linkWithNext, unlinkFromNext } from './store.js';
+
 export const $ = (sel, root = document) => root.querySelector(sel);
 
 export function esc(s) {
@@ -55,6 +57,7 @@ const ICONS = {
   flame: '<path d="M12 22c4 0 7-2.7 7-6.5 0-4.5-4-6-4-10.5 0 0-3 1.5-3 5 0 1.5-1 2-1.5 1.2C10 10 9.5 9 9.5 7.5 7 9.5 5 12 5 15.5 5 19.3 8 22 12 22Z"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
   bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8Z"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
 };
@@ -224,4 +227,16 @@ export function emptyState({ iconName = 'info', title, message = '', actionLabel
       ${message ? `<p>${esc(message)}</p>` : ''}
       ${actionLabel ? `<a class="btn btn-primary" href="${esc(actionHref || '#')}">${esc(actionLabel)}</a>` : ''}
     </div>`;
+}
+
+/** The seam between two exercises: tap it to superset them, or to split them
+    apart again. `apply` receives the change to make to the list. */
+export function supersetSeam(list, i, apply) {
+  const linked = !!list[i].group && list[i].group === list[i + 1].group;
+  const btn = node(`
+    <button class="ss-link ${linked ? 'is-linked' : ''}" type="button" aria-pressed="${linked}">
+      ${icon('link')}<span>${linked ? 'Superset · tap to split' : 'Superset with next'}</span>
+    </button>`);
+  btn.addEventListener('click', () => apply((l) => (linked ? unlinkFromNext(l, i) : linkWithNext(l, i))));
+  return btn;
 }

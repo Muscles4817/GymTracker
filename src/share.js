@@ -5,7 +5,7 @@ import {
 } from './util.js';
 import {
   exerciseById, exerciseName, workoutVolume, workingSets, workoutDuration,
-  workoutReps, exerciseSeries, getSettings, workoutRecords, RECORD_LABELS,
+  workoutReps, exerciseSeries, getSettings, workoutRecords, RECORD_LABELS, supersetLabels,
 } from './store.js';
 import { sheet, toast, esc, icon } from './ui.js';
 
@@ -51,14 +51,19 @@ export function formatWorkout(w, { includeFooter = true } = {}) {
   lines.push(meta.join(' · '));
 
   const records = workoutRecords(w);
-  for (const e of w.entries) {
+  const labels = supersetLabels(w.entries);
+  w.entries.forEach((e, at) => {
     const done = e.sets.filter((s) => s.done);
-    if (!done.length) continue;
+    if (!done.length) return;
     const ex = exerciseById(e.exerciseId);
     lines.push('');
-    lines.push(`*${exerciseName(e.exerciseId)}*`);
+    lines.push(`*${labels.has(at) ? `${labels.get(at)} ` : ''}${exerciseName(e.exerciseId)}*`);
     done.forEach((s, i) => lines.push(setLine(s, ex, unit, i + 1, records.get(s.id))));
     if (e.notes?.trim()) lines.push(`  📝 ${e.notes.trim()}`);
+  });
+  if (labels.size) {
+    lines.push('');
+    lines.push('_Same letter = superset, done back to back._');
   }
 
   if (w.notes?.trim()) {

@@ -21,6 +21,9 @@ screen and works with the phone in airplane mode.
 - **Personal records** flagged the moment you tick the set — heaviest weight,
   more reps than ever at a weight, longest hold or distance — and kept as a
   rep-max table on each exercise's page
+- **Supersets**: tap the seam between two exercises to pair them (or chain more
+  for a giant set). Ticking a set moves you to the next exercise with no rest;
+  the timer starts after the last one in the round
 - Add your own exercises; hide the machines your gym doesn't have
 
 **Routines**

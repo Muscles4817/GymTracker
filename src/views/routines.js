@@ -3,10 +3,11 @@
 import {
   allRoutines, routineById, saveRoutine, deleteRoutine, startFromRoutine,
   activeWorkout, exerciseName, exerciseById, getSettings, routineTarget,
+  normalizeGroups, supersetLabels,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import { ROUTINE_TEMPLATES, TEMPLATE_GROUPS, templateById, routineFromTemplate } from '../routine-templates.js';
-import { node, esc, icon, emptyState, confirmDialog, promptDialog, sheet, toast, on } from '../ui.js';
+import { node, esc, icon, emptyState, confirmDialog, promptDialog, sheet, toast, on, supersetSeam } from '../ui.js';
 import { primeAudio } from '../timer.js';
 import { uid, toDisplayWeight, toStoredWeight, fmtWeight, plural, debounce } from '../util.js';
 
@@ -116,6 +117,7 @@ export function openRoutinePreview(id) {
   if (!r) return;
   const unit = getSettings().unit;
   const running = activeWorkout();
+  const labels = supersetLabels(r.items);
 
   sheet({
     title: r.name,
@@ -131,7 +133,9 @@ export function openRoutinePreview(id) {
           r.items.length
             ? `<ul class="preview-list">${r.items
                 .map(
-                  (i) => `<li><span class="preview-name">${esc(exerciseName(i.exerciseId))}</span>
+                  (i, at) => `<li><span class="preview-name">${
+                    labels.has(at) ? `<span class="ss-tag" title="Superset">${esc(labels.get(at))}</span>` : ''
+                  }${esc(exerciseName(i.exerciseId))}</span>
                     <span class="preview-target">${esc(targetText(i, unit))}</span></li>`
                 )
                 .join('')}</ul>`
@@ -292,13 +296,24 @@ export function routineEditorView(id) {
       itemsEl.appendChild(node('<p class="muted pad center">No exercises yet.</p>'));
       return;
     }
+    const labels = supersetLabels(r.items);
     r.items.forEach((item, idx) => {
+      if (idx > 0) {
+        itemsEl.appendChild(
+          supersetSeam(r.items, idx - 1, async (toggle) => {
+            await persist((r2) => toggle(r2.items));
+            drawItems();
+          })
+        );
+      }
       const ex = exerciseById(item.exerciseId);
       const timed = ex?.track === 'dur' || ex?.track === 'cardio';
       const row = node(`
-        <div class="routine-item" data-item="${esc(item.id)}">
+        <div class="routine-item ${labels.has(idx) ? 'in-superset' : ''}" data-item="${esc(item.id)}">
           <div class="routine-item-head">
-            <span class="routine-item-name">${esc(exerciseName(item.exerciseId))}</span>
+            <span class="routine-item-name">${
+              labels.has(idx) ? `<span class="ss-tag" title="Superset">${esc(labels.get(idx))}</span>` : ''
+            }${esc(exerciseName(item.exerciseId))}</span>
             <div class="entry-tools">
               <button class="icon-btn" data-a="up" ${idx === 0 ? 'disabled' : ''} aria-label="Move up">${icon('chevronDown', 'flip')}</button>
               <button class="icon-btn" data-a="remove" aria-label="Remove">${icon('trash')}</button>
@@ -339,12 +354,13 @@ export function routineEditorView(id) {
         await persist((r2) => {
           const i = r2.items.findIndex((x) => x.id === item.id);
           if (i > 0) [r2.items[i - 1], r2.items[i]] = [r2.items[i], r2.items[i - 1]];
+          normalizeGroups(r2.items);
         });
         drawItems();
       });
 
       row.querySelector('[data-a="remove"]').addEventListener('click', async () => {
-        await persist((r2) => (r2.items = r2.items.filter((x) => x.id !== item.id)));
+        await persist((r2) => (r2.items = normalizeGroups(r2.items.filter((x) => x.id !== item.id))));
         drawItems();
       });
 

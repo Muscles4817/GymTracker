@@ -5,11 +5,12 @@ import {
   deleteWorkout, workoutById, newSet, newEntry, exerciseById, exerciseName,
   workoutVolume, workingSets, workoutDuration, lastPerformance, allRoutines,
   completedWorkouts, getSettings, isSetFilled, showsRpe, workoutRecords, RECORD_LABELS,
+  normalizeGroups, supersetLabels, supersetNext,
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import { openRoutinePreview } from './routines.js';
 import {
-  node, esc, icon, toast, confirmDialog, promptDialog, emptyState, on,
+  node, esc, icon, toast, confirmDialog, promptDialog, emptyState, on, supersetSeam,
 } from '../ui.js';
 import {
   fmtWeight, fmtNum, fmtDuration, fmtClock, parseDuration, relativeDay, fmtDistance,
@@ -179,8 +180,17 @@ function activeScreen(workout, rerender) {
       );
       return;
     }
+    const labels = supersetLabels(w.entries);
     w.entries.forEach((entry, i) => {
-      entriesEl.appendChild(entryCard(entry, i, { id, mutate, current, drawEntries, refreshStats }));
+      if (i > 0) {
+        entriesEl.appendChild(
+          supersetSeam(w.entries, i - 1, async (toggle) => {
+            await mutate((x) => toggle(x.entries));
+            drawEntries();
+          })
+        );
+      }
+      entriesEl.appendChild(entryCard(entry, i, { id, mutate, current, drawEntries, refreshStats, label: labels.get(i) }));
     });
   };
 
@@ -279,10 +289,12 @@ function entryCard(entry, index, ctx) {
   const rpeOn = track !== 'cardio' && showsRpe(entry, getSettings().trackRpe);
 
   const card = node(`
-    <section class="card entry" data-entry="${esc(entry.id)}">
+    <section class="card entry ${ctx.label ? 'in-superset' : ''}" data-entry="${esc(entry.id)}">
       <header class="entry-head">
         <div class="entry-title">
-          <a class="entry-name" href="#/exercise/${esc(entry.exerciseId)}">${esc(exerciseName(entry.exerciseId))}</a>
+          <a class="entry-name" href="#/exercise/${esc(entry.exerciseId)}">${
+            ctx.label ? `<span class="ss-tag" title="Superset">${esc(ctx.label)}</span>` : ''
+          }${esc(exerciseName(entry.exerciseId))}</a>
           <span class="entry-sub">${esc(lastSummary(last, unit, track))}</span>
         </div>
         <div class="entry-tools">
@@ -345,6 +357,7 @@ function entryCard(entry, index, ctx) {
     await ctx.mutate((w) => {
       const i = w.entries.findIndex((x) => x.id === entry.id);
       if (i > 0) [w.entries[i - 1], w.entries[i]] = [w.entries[i], w.entries[i - 1]];
+      normalizeGroups(w.entries);
     });
     ctx.drawEntries();
   });
@@ -369,6 +382,7 @@ function entryCard(entry, index, ctx) {
     await ctx.mutate((w) => {
       at = w.entries.findIndex((x) => x.id === entry.id);
       if (at > -1) w.entries.splice(at, 1);
+      normalizeGroups(w.entries);
     });
     ctx.drawEntries();
     ctx.refreshStats();
@@ -378,7 +392,11 @@ function entryCard(entry, index, ctx) {
       action: {
         label: 'Undo',
         onClick: async () => {
-          await ctx.mutate((w) => w.entries.splice(Math.min(at, w.entries.length), 0, snapshot));
+          await ctx.mutate((w) => {
+            w.entries.splice(Math.min(at, w.entries.length), 0, snapshot);
+            // Back into its superset only if its old neighbours still are one.
+            normalizeGroups(w.entries);
+          });
           ctx.drawEntries();
           ctx.refreshStats();
         },
@@ -390,6 +408,7 @@ function entryCard(entry, index, ctx) {
 }
 
 const findEntry = (w, entryId) => w?.entries.find((e) => e.id === entryId) || null;
+
 
 function lastSummary(last, unit, track) {
   if (!last) return 'First time logging this';
@@ -544,9 +563,19 @@ function setRow(s, i, entry, ctx, track, last, rpeOn, record) {
         duration: 4000,
       });
     }
+    if (!nowDone) return;
+    // In a superset you go straight on to the next exercise and rest only
+    // after the round, so the timer waits and the screen moves you along.
+    const w = ctx.current();
+    const at = w.entries.findIndex((x) => x.id === entry.id);
+    const { rest, next } = supersetNext(w.entries, at);
     const settings = getSettings();
-    if (nowDone && settings.restAuto && settings.restDefault > 0) {
-      startRest(settings.restDefault, exerciseName(entry.exerciseId));
+    if (rest && settings.restAuto && settings.restDefault > 0) {
+      startRest(settings.restDefault, entry.group ? `Superset ${(ctx.label || '').charAt(0)}` : exerciseName(entry.exerciseId));
+    }
+    if (next != null) {
+      const target = document.querySelector(`.entry[data-entry="${CSS.escape(w.entries[next].id)}"]`);
+      (target?.querySelector('.set-row.is-next') || target)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
 
