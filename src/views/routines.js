@@ -7,11 +7,13 @@ import {
 import { openExercisePicker } from './picker.js';
 import { ROUTINE_TEMPLATES, TEMPLATE_GROUPS, templateById, routineFromTemplate } from '../routine-templates.js';
 import { node, esc, icon, emptyState, confirmDialog, promptDialog, sheet, toast, on } from '../ui.js';
-import { uid, toDisplayWeight, toStoredWeight, plural, debounce } from '../util.js';
+import { primeAudio } from '../timer.js';
+import { uid, toDisplayWeight, toStoredWeight, fmtWeight, plural, debounce } from '../util.js';
 
 export function routinesView() {
   const el = node('<div class="view stack"></div>');
   const routines = allRoutines();
+  const running = activeWorkout();
 
   el.appendChild(
     node(`
@@ -24,6 +26,8 @@ export function routinesView() {
       </div>
     </section>`)
   );
+
+  if (running) el.appendChild(node(`<section class="card">${runningNotice(running)}</section>`));
 
   if (!routines.length) {
     el.appendChild(
@@ -53,7 +57,7 @@ export function routinesView() {
                 </span>
                 ${icon('chevron', 'muted-icon')}
               </a>
-              <button class="btn btn-primary btn-sm" data-a="start" data-id="${esc(r.id)}" type="button">${icon('play')} Start</button>
+              ${running ? '' : `<button class="btn btn-primary btn-sm" data-a="start" data-id="${esc(r.id)}" type="button">${icon('play')} Start</button>`}
             </li>`
             )
             .join('')}
@@ -79,6 +83,72 @@ export function routinesView() {
   });
 
   return { el };
+}
+
+/** Said wherever a Start button would be, so it is obvious why there isn't one
+    and the way back to the session is right there. */
+function runningNotice(w) {
+  return `
+    <div class="running-notice">
+      <span class="live-dot" aria-hidden="true"></span>
+      <p><strong>${esc(w.name || 'Workout')}</strong> is in progress. Browse and edit freely — nothing here starts until you finish it.</p>
+      <a class="btn btn-primary btn-sm" href="#/log">Back to workout</a>
+    </div>`;
+}
+
+function targetText(item, unit) {
+  const ex = exerciseById(item.exerciseId);
+  const timed = ex?.track === 'dur' || ex?.track === 'cardio';
+  const sets = Math.max(1, Number(item.targetSets) || 1);
+  let s = plural(sets, 'set');
+  if (item.targetReps != null && !timed) s = `${sets} × ${item.targetReps}`;
+  if (item.targetWeight != null) s += ` @ ${fmtWeight(item.targetWeight, unit)}`;
+  return s;
+}
+
+/** Tapping a routine only ever shows it. Starting is the one labelled button
+    in here, and it is not offered while another session is running. */
+export function openRoutinePreview(id) {
+  const r = routineById(id);
+  if (!r) return;
+  const unit = getSettings().unit;
+  const running = activeWorkout();
+
+  sheet({
+    title: r.name,
+    bodyHtml: `
+      <div class="stack">
+        ${r.notes?.trim() ? `<p class="muted">${esc(r.notes)}</p>` : ''}
+        ${
+          r.items.length
+            ? `<ul class="preview-list">${r.items
+                .map(
+                  (i) => `<li><span class="preview-name">${esc(exerciseName(i.exerciseId))}</span>
+                    <span class="preview-target">${esc(targetText(i, unit))}</span></li>`
+                )
+                .join('')}</ul>`
+            : '<p class="muted center">No exercises in this routine yet.</p>'
+        }
+        ${
+          running
+            ? runningNotice(running)
+            : `<button class="btn btn-primary btn-lg btn-block" data-a="start" type="button">${icon('play')} Start this workout</button>`
+        }
+        <a class="btn btn-ghost btn-block" data-a="edit" href="#/routines/${esc(r.id)}">${icon('edit')} Edit routine</a>
+      </div>`,
+    onMount(body, close) {
+      body.querySelector('[data-a="start"]')?.addEventListener('click', async () => {
+        primeAudio();
+        close();
+        await startFromRoutine(id);
+        // Already on #/log when opened from the start screen; re-render by hand.
+        if (location.hash === '#/log') window.dispatchEvent(new Event('hashchange'));
+        else location.hash = '#/log';
+      });
+      // Both links navigate; the sheet just needs to get out of the way.
+      body.querySelectorAll('a').forEach((a) => a.addEventListener('click', close));
+    },
+  });
 }
 
 // ---------------------------------------------------------------- templates
@@ -175,7 +245,11 @@ export function routineEditorView(id) {
     <section class="card">
       <input class="title-input" value="${esc(routine.name)}" aria-label="Routine name">
       <textarea class="input" data-f="notes" rows="2" placeholder="Notes for this routine (optional)">${esc(routine.notes || '')}</textarea>
-      <button class="btn btn-primary btn-block" data-a="start" type="button">${icon('play')} Start this routine</button>
+      ${
+        activeWorkout()
+          ? runningNotice(activeWorkout())
+          : `<button class="btn btn-primary btn-block" data-a="start" type="button">${icon('play')} Start this routine</button>`
+      }
     </section>`)
   );
 
@@ -293,7 +367,7 @@ export function routineEditorView(id) {
     });
   });
 
-  el.querySelector('[data-a="start"]').addEventListener('click', async () => {
+  el.querySelector('[data-a="start"]')?.addEventListener('click', async () => {
     if (activeWorkout()) return toast('Finish or discard the workout in progress first', { kind: 'warn' });
     await startFromRoutine(id);
     location.hash = '#/log';

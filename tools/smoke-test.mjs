@@ -428,6 +428,7 @@ async function main() {
   } else {
     ok('Resume bar shows off the Log screen', resume.name);
   }
+  await shot('resume-bar');
 
   await evaluate("document.getElementById('resume-bar').click()");
   await sleep(600);
@@ -617,13 +618,40 @@ ${timedRoundTrip}`);
   await shot('conditioning');
 
   // ------------------------------------------------------------- 11d. routines
-  const routine = await evaluate(`
+  // Tapping a routine on the start screen previews it; only the sheet's own
+  // button starts it.
+  await evaluate(`
     (async () => {
       const s = await import(new URL('src/store.js', location.href));
       const done = s.workoutById(${JSON.stringify(strengthWorkoutId)});
       if (!done) throw new Error('strength workout ${strengthWorkoutId} is missing');
-      const r = await s.saveRoutine(s.routineFromWorkout(done, 'Push Day A'));
-      await s.startFromRoutine(r.id);
+      await s.saveRoutine(s.routineFromWorkout(done, 'Push Day A'));
+      location.hash = '#/history';
+    })()`, 'save routine');
+  await sleep(300);
+  await evaluate('location.hash = "#/log"');
+  await waitFor('[data-a="preview-routine"]', 5000, 'routine chip');
+  await evaluate(`[...document.querySelectorAll('[data-a="preview-routine"]')]
+    .find(b => b.textContent.includes('Push Day A')).click()`);
+  await waitFor('.sheet .preview-list', 5000, 'routine preview');
+  const previewed = await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
+      return { active: !!s.activeWorkout(), rows: document.querySelectorAll('.sheet .preview-list li').length };
+    })()`, 'preview');
+  if (previewed.active || previewed.rows !== 2) {
+    fail('Routine preview', `tapping the chip ${previewed.active ? 'started a workout' : `listed ${previewed.rows} exercises`}`);
+  } else {
+    ok('Tapping a routine previews it without starting it', `${previewed.rows} exercises listed`);
+  }
+  await sleep(350); // let the sheet finish sliding up before capturing
+  await shot('routine-preview');
+
+  await evaluate('document.querySelector(\'.sheet [data-a="start"]\').click()');
+  await waitFor('.workout-head', 5000, 'routine workout');
+  const routine = await evaluate(`
+    (async () => {
+      const s = await import(new URL('src/store.js', location.href));
       const w = s.activeWorkout();
       return {
         name: w.name,
@@ -638,6 +666,35 @@ ${timedRoundTrip}`);
   } else {
     ok('Routine saved and started', `"${routine.name}", ${routine.entries} exercises, sets prefilled at 80 kg`);
   }
+
+  // With a session running, routines can be browsed but nothing offers to start.
+  await evaluate('location.hash = "#/routines"');
+  await waitFor('.running-notice', 5000, 'running notice on routines');
+  const browsing = await evaluate(`
+    (async () => {
+      const r = await import(new URL('src/views/routines.js', location.href));
+      const listStarts = document.querySelectorAll('#content [data-a="start"]').length;
+      const id = document.querySelector('.routine-row .history-row').getAttribute('href').split('/').pop();
+      r.openRoutinePreview(id);
+      await new Promise(res => setTimeout(res, 300));
+      const sheetStarts = document.querySelectorAll('.sheet [data-a="start"]').length;
+      const sheetNotice = !!document.querySelector('.sheet .running-notice');
+      document.querySelector('.sheet [data-a="close"]').click();
+      location.hash = '#/routines/' + id;
+      await new Promise(res => setTimeout(res, 300));
+      return {
+        listStarts, sheetStarts, sheetNotice,
+        editorStarts: document.querySelectorAll('#content [data-a="start"]').length,
+        editorNotice: !!document.querySelector('#content .running-notice'),
+      };
+    })()`, 'browse while running');
+  if (browsing.listStarts || browsing.sheetStarts || browsing.editorStarts || !browsing.sheetNotice || !browsing.editorNotice) {
+    fail('Browsing routines mid-workout', JSON.stringify(browsing));
+  } else {
+    ok('Mid-workout, routines browse without a Start button anywhere');
+  }
+  await shot('routines-while-running');
+
   await evaluate(`
     (async () => {
       const s = await import(new URL('src/store.js', location.href));

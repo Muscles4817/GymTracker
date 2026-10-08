@@ -728,6 +728,10 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   text-align: left;
   cursor: pointer;
 }
+/* A chip opens the routine's preview; the chevron says so, so it isn't read
+   as a one-tap start. */
+.routine-chip { position: relative; padding-right: 30px; }
+.routine-chip-go { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 1.125rem; height: 1.125rem; color: var(--muted); }
 .routine-name { font-weight: 650; }
 .routine-meta { font-size: var(--fs-xs); color: var(--text-secondary); }
 
@@ -856,6 +860,11 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 }
 .rest-btn:hover { background: rgba(255, 255, 255, 0.32); }
 
+/* Off the Log screen the label is the way back to the workout. */
+.rest-go { display: none; width: 1rem; height: 1rem; flex: none; }
+.rest-bar.is-away .rest-go { display: inline-block; }
+.rest-bar.is-away .rest-label { text-decoration: underline; text-underline-offset: 3px; }
+
 /* ------------------------------------------------------------ resume bar */
 
 /* Sits in the same slot as the rest bar, and never at the same time, so the
@@ -872,14 +881,21 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   max-width: 760px;
   margin: 0 auto;
   padding: 9px 14px;
-  background: var(--surface-1);
+  background: var(--accent-soft);
   color: var(--text-primary);
-  border-top: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
 }
-.resume-icon { display: inline-flex; color: var(--accent); flex: none; }
-.resume-icon .icon { width: 1.5rem; height: 1.5rem; }
 .resume-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.resume-kicker {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* --accent alone is too dark on the dark-mode soft fill; mixing toward the
+     text colour darkens it in light mode and lifts it in dark. */
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-primary));
+}
 .resume-name {
   font-weight: 650;
   font-size: var(--fs-sm);
@@ -894,8 +910,10 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   gap: 2px;
   flex: none;
   min-height: var(--tap);
-  padding-left: 6px;
-  color: var(--accent);
+  padding: 0 10px 0 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
   font-size: var(--fs-sm);
   font-weight: 650;
 }
@@ -903,8 +921,48 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
 
 /* The bar floats over the page, so the page needs room under it. */
 body.resume-active .content {
-  padding-bottom: calc(var(--tab-h) + 92px + 3.5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--tab-h) + 92px + 4.5rem + env(safe-area-inset-bottom));
 }
+
+/* "Something is running" — on the resume bar and wherever a Start button
+   stands down for the session in progress. */
+.live-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--success-bg);
+  animation: live 1.6s ease-in-out infinite;
+}
+@keyframes live {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success-bg) 55%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success-bg) 0%, transparent); }
+}
+
+.running-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+.running-notice p { flex: 1 1 12rem; margin: 0; font-size: var(--fs-sm); }
+.running-notice .btn { flex: none; }
+
+.preview-list { list-style: none; margin: 0; padding: 0; }
+.preview-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.preview-list li:first-child { border-top: 0; }
+.preview-name { font-weight: 600; min-width: 0; }
+.preview-target { flex: none; font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 .rest-label { cursor: pointer; }
 

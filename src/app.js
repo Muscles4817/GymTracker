@@ -105,7 +105,7 @@ function mountRestBar() {
     <div id="rest-bar" class="rest-bar" hidden>
       <div class="rest-progress"></div>
       <div class="rest-inner">
-        <span class="rest-label">${icon('timer')}<span data-rest-label>Rest</span></span>
+        <span class="rest-label">${icon('timer')}<span data-rest-label>Rest</span>${icon('chevron', 'rest-go')}</span>
         <span class="rest-clock" data-rest-clock>0:00</span>
         <div class="rest-buttons">
           <button class="rest-btn" data-a="minus" type="button" aria-label="Subtract 15 seconds">−15</button>
@@ -144,6 +144,12 @@ function mountRestBar() {
     bar.classList.toggle('is-paused', t.paused);
     bar.classList.toggle('is-done', t.remaining <= 0);
   });
+
+  // Off the Log screen the rest bar stands in for the resume bar, so its label
+  // has to read as the way back.
+  const paintAway = () => bar.classList.toggle('is-away', location.hash !== '#/log');
+  paintAway();
+  window.addEventListener('hashchange', paintAway);
 }
 
 // ------------------------------------------------------- resume-workout bar
@@ -154,8 +160,9 @@ function mountRestBar() {
 function mountResumeBar() {
   const bar = node(`
     <a id="resume-bar" class="resume-bar" href="#/log" hidden>
-      <span class="resume-icon">${icon('dumbbell')}</span>
+      <span class="live-dot" aria-hidden="true"></span>
       <span class="resume-text">
+        <span class="resume-kicker">Workout in progress</span>
         <span class="resume-name" data-resume-name></span>
         <span class="resume-meta" data-resume-meta></span>
       </span>
