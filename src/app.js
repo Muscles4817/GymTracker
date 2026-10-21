@@ -197,6 +197,43 @@ function mountResumeBar() {
   subscribeTimer(paint);
 }
 
+// ---------------------------------------------------------------- wake lock
+
+/** Keep the screen on while a workout is running, so the phone doesn't lock
+    between sets and hide the rest clock. The browser drops the lock whenever
+    the page is hidden, so it is taken again on the way back. */
+function mountWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  let lock = null;
+  let busy = false;
+
+  const sync = async () => {
+    if (busy) return;
+    const want = !!activeWorkout() && getSettings().keepAwake && document.visibilityState === 'visible';
+    busy = true;
+    try {
+      if (want && !lock) {
+        lock = await navigator.wakeLock.request('screen');
+        lock.addEventListener('release', () => (lock = null));
+      } else if (!want && lock) {
+        const held = lock;
+        lock = null;
+        await held.release();
+      }
+    } catch {
+      // Refused (low battery, or the page lost focus mid-request) — the next
+      // change of state tries again.
+      lock = null;
+    } finally {
+      busy = false;
+    }
+  };
+
+  sync();
+  subscribe(sync);
+  document.addEventListener('visibilitychange', sync);
+}
+
 // ---------------------------------------------------------------- shell
 
 function mountShell() {
@@ -279,6 +316,7 @@ async function boot() {
   mountShell();
   mountRestBar();
   mountResumeBar();
+  mountWakeLock();
 
   if (!location.hash) location.hash = '#/log';
   renderRoute();

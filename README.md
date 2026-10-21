@@ -17,6 +17,8 @@ screen and works with the phone in airplane mode.
 - **Rest timer** that starts on its own when you tick a set — ±15s, pause, skip,
   chime and vibrate; it counts against a timestamp, so locking the phone mid-rest
   doesn't stall it
+- **Keeps the screen on** while a workout is running, so the phone doesn't lock
+  between sets (switch off in Settings)
 - **Last-time reference** on every exercise and every set row, so you know what to beat
 - **Personal records** flagged the moment you tick the set — heaviest weight,
   more reps than ever at a weight, longest hold or distance — and kept as a
