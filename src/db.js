@@ -79,3 +79,20 @@ export function dbPutMany(store, values) {
 export async function wipeAll() {
   await Promise.all(Object.values(STORES).map((s) => dbClear(s)));
 }
+
+/** Ask the browser to exempt this origin from automatic clearing: Chrome
+    evicts under storage pressure, and Safari clears a site left unvisited
+    for seven days unless it is installed. Chrome and Safari decide silently;
+    Firefox asks the user, so only call this with `ask` once there is a log
+    worth protecting. Resolves true when storage is persistent, false when it
+    is not, and null where the API doesn't exist. */
+export async function persistStorage({ ask = true } = {}) {
+  const s = navigator.storage;
+  if (!s?.persisted) return null;
+  try {
+    if (await s.persisted()) return true;
+    return ask && s.persist ? await s.persist() : false;
+  } catch {
+    return false;
+  }
+}

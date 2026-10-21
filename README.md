@@ -52,6 +52,8 @@ screen and works with the phone in airplane mode.
   display, so switching kg ↔ lb never changes what you actually lifted
 - Full JSON backup and restore, plus a CSV export with one row per set
 - A nudge to back up if it's been a month
+- Asks the browser to protect its storage from automatic clearing once there is
+  a log worth keeping, and shows under Settings → Your data whether it agreed
 
 ---
 

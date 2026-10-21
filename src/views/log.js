@@ -18,6 +18,7 @@ import {
   distanceLabel, plural, SET_TYPES, debounce,
 } from '../util.js';
 import { startRest, primeAudio } from '../timer.js';
+import { persistStorage } from '../db.js';
 import { openShareSheet, formatWorkout } from '../share.js';
 
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
@@ -251,6 +252,7 @@ function activeScreen(workout, rerender) {
       if (!ok) return;
     }
     const done = await finishWorkout(id);
+    persistStorage(); // there is now a log worth keeping
     const records = workoutRecords(done).size;
     toast(records ? `Workout saved · ${plural(records, 'PR')}` : 'Workout saved', {
       action: { label: 'Share', onClick: () => shareWorkout(done) },
