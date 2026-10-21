@@ -444,6 +444,35 @@ async function main() {
     ok('Deleting an unticked set passes without an undo prompt');
   }
 
+  // ------------------------------------------------------------- 5b-2. plate calculator
+  await evaluate(`[...document.querySelectorAll('.entry')].find(c => c.textContent.includes('Barbell Bench Press')).querySelector('[data-a="plates"]').click()`);
+  await waitFor('.sheet .plate-viz', 5000, 'plate calculator');
+  const plateRun = await evaluate(`
+    (async () => {
+      const t = document.querySelector('.sheet [data-f="target"]');
+      const read = async (v) => {
+        t.value = v;
+        t.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 50));
+        return {
+          plates: [...document.querySelectorAll('.sheet .plate')].map((p) => p.textContent),
+          text: document.querySelector('.sheet [data-result]').textContent,
+        };
+      };
+      const opened = document.querySelector('.sheet [data-f="target"]').value;
+      return { opened, exact: await read('100'), short: await read('101') };
+    })()`, 'plate calculator');
+  if (plateRun.exact.plates.join() !== '25,15') {
+    fail('Plate calculator', `100 kg on a 20 kg bar gave ${JSON.stringify(plateRun.exact)}`);
+  } else if (!/1 kg short/.test(plateRun.short.text)) {
+    fail('Plate calculator', `101 kg should be 1 kg short: ${plateRun.short.text}`);
+  } else {
+    ok('Plate calculator loads the bar', `opened at ${plateRun.opened} kg; 100 → 25 + 15 a side; 101 → 1 kg short`);
+  }
+  await shot('plates');
+  await evaluate("document.querySelector('.sheet [data-a=\"close\"]').click()");
+  await sleep(250);
+
   // ------------------------------------------------------------- 5c. resume bar
   // The rest bar owns this slot while it is up, so clear it first.
   await evaluate(`

@@ -147,3 +147,35 @@ export const SET_TYPES = {
   d: { label: 'Drop set', short: 'D', cls: 'st-d' },
   f: { label: 'To failure', short: 'F', cls: 'st-f' },
 };
+
+// ---------------------------------------------------------------- plates
+
+/* Plates and bars are gym kit, sold in one unit system, so the defaults come
+   per unit. What the user sets is stored in kg like every other weight. */
+export const DEFAULT_PLATES = { kg: [25, 20, 15, 10, 5, 2.5, 1.25], lb: [45, 35, 25, 10, 5, 2.5] };
+
+export const BAR_EQUIPMENT = {
+  barbell: { kg: 20, lb: 45 },
+  ezbar: { kg: 10, lb: 25 },
+  trapbar: { kg: 25, lb: 55 },
+  smith: { kg: 15, lb: 35 },
+};
+
+/** Plates for each side to load `total` on `bar`, heaviest first, in
+    whatever unit all three are given in. Assumes pairs of every size, and
+    goes greedily from the heaviest, which is exact for standard plate sets.
+    `off` is how far the closest load falls short (negative below the bar). */
+export function platesFor(total, bar, plates) {
+  const k = (v) => Math.round(v * 1000); // whole grams, so 1.25s add up exactly
+  const sizes = [...new Set(plates.map(k).filter((p) => p > 0))].sort((a, b) => b - a);
+  let left = Math.floor((k(total) - k(bar)) / 2);
+  const perSide = [];
+  for (const p of sizes) {
+    while (left >= p) {
+      perSide.push(p / 1000);
+      left -= p;
+    }
+  }
+  const loaded = (k(bar) + 2 * perSide.reduce((n, p) => n + k(p), 0)) / 1000;
+  return { perSide, loaded, off: (k(total) - k(loaded)) / 1000 };
+}

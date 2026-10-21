@@ -19,6 +19,8 @@ screen and works with the phone in airplane mode.
   doesn't stall it
 - **Keeps the screen on** while a workout is running, so the phone doesn't lock
   between sets (switch off in Settings)
+- **Plate calculator** on barbell, EZ-bar, trap-bar and Smith exercises: what to
+  load on each side, drawn to scale, using the plates and bar weights you have
 - **Last-time reference** on every exercise and every set row, so you know what to beat
 - **Personal records** flagged the moment you tick the set — heaviest weight,
   more reps than ever at a weight, longest hold or distance — and kept as a

@@ -718,7 +718,44 @@ textarea.input { min-height: 4.5rem; resize: vertical; line-height: 1.45; }
   cursor: pointer;
 }
 .set-row.is-done .set-done { background: var(--success-bg); border-color: var(--success-bg); color: var(--success-fg); }
-.add-set { width: 100%; margin-top: 9px; }
+.entry-foot { display: flex; gap: 8px; margin-top: 9px; }
+.entry-foot .add-set { flex: 1; width: auto; margin-top: 0; }
+.entry-foot .btn { flex: none; }
+
+/* ------------------------------------------------------------ plate calculator */
+
+.plate-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plate-inputs label { display: flex; flex-direction: column; gap: 4px; }
+.plate-inputs span { font-size: var(--fs-micro); font-weight: 700; text-transform: uppercase; color: var(--text-secondary); }
+/* One side of the bar, drawn to scale by plate size so a glance matches what
+   is on the rack. */
+.plate-viz {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: flex-end;
+  height: 8.5rem;
+  padding: 0 4px;
+  background: linear-gradient(var(--axis), var(--axis)) left center / 100% 6px no-repeat;
+}
+.plate-sleeve { width: 2.5rem; height: 14px; border-radius: 3px; background: var(--muted); flex: none; }
+.plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.875rem;
+  padding: 0 3px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  flex: none;
+}
+.plate-collar { width: 10px; height: 26px; border-radius: 3px; background: var(--text-secondary); flex: none; }
+.plate-result { margin: 0; font-weight: 650; }
 
 .done-sets { margin: 8px 0 0; padding: 0; list-style: none; }
 .done-sets li {

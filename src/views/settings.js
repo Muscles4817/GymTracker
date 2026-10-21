@@ -6,6 +6,7 @@ import {
 } from '../store.js';
 import { workoutsToCsv, downloadBlob } from '../share.js';
 import { persistStorage } from '../db.js';
+import { platesInUnit } from './plates.js';
 import { node, esc, icon, toast, confirmDialog, promptDialog } from '../ui.js';
 import { dayKey, fmtDateFull, plural, toDisplayWeight, toStoredWeight } from '../util.js';
 import { applyTheme, applyTextScale, TEXT_SCALES } from '../theme.js';
@@ -59,6 +60,15 @@ export function settingsView() {
           <input class="input num" id="set-step" inputmode="decimal" value="${esc(String(Math.round(toDisplayWeight(incrementStep(s), s.unit) * 100) / 100))}">
         </div>
         <p class="muted small">Starting a routine loads what you lifted last time. Once every target set reached its target reps at that weight, the next session adds one step.</p>
+      </section>
+
+      <section class="card">
+        <header class="card-head"><h3>Plates</h3></header>
+        <div class="setting">
+          <label for="set-plates">Plates you have (${esc(s.unit)})</label>
+          <input class="input" id="set-plates" inputmode="decimal" value="${esc(platesInUnit(s).join(', '))}">
+        </div>
+        <p class="muted small">For the plate calculator on barbell exercises. Separate sizes with commas; it assumes you have them in pairs. Clear the box to go back to the standard set. Bar weights are set from the calculator itself.</p>
       </section>
 
       <section class="card">
@@ -124,6 +134,8 @@ export function settingsView() {
     const step = el.querySelector('#set-step');
     step.value = String(Math.round(toDisplayWeight(incrementStep(), ev.target.value) * 100) / 100);
     el.querySelector('label[for="set-step"]').textContent = `Step up by (${ev.target.value})`;
+    platesEl.value = platesInUnit().join(', ');
+    el.querySelector('label[for="set-plates"]').textContent = `Plates you have (${ev.target.value})`;
     toast(`Showing weights in ${ev.target.value}`);
   });
   el.querySelector('#set-theme').addEventListener('change', async (ev) => {
@@ -144,6 +156,15 @@ export function settingsView() {
     const v = parseFloat(ev.target.value);
     // Blank or nonsense goes back to the default for the unit.
     saveSettings({ increment: v > 0 ? toStoredWeight(v, getSettings().unit) : null });
+  });
+
+  // ---- plates
+  const platesEl = el.querySelector('#set-plates');
+  platesEl.addEventListener('change', async () => {
+    const unit = getSettings().unit;
+    const sizes = platesEl.value.split(/[,\s]+/).map(parseFloat).filter((v) => v > 0);
+    await saveSettings({ plates: sizes.length ? sizes.map((v) => toStoredWeight(v, unit)) : null });
+    platesEl.value = platesInUnit().join(', ');
   });
 
   // ---- rest timer
