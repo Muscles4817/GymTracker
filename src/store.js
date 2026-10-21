@@ -15,6 +15,8 @@ export const DEFAULT_SETTINGS = {
   trackRpe: false,
   suggestIncrease: true,
   keepAwake: true,
+  plates: null, // kg; null means the standard set for the display unit
+  bars: {}, // equipment -> bar weight in kg, where it differs from the default
   increment: null, // kg; null means 2.5 kg, or 5 lb when showing pounds
   sound: true,
   vibrate: true,

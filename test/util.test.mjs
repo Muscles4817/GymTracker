@@ -7,6 +7,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  platesFor,
+  DEFAULT_PLATES,
   uid,
   dayKey,
   parseDayKey,
@@ -246,4 +248,34 @@ test('every set type carries a label, badge and class', () => {
 
 test('set type keys match the ones the store and styles use', () => {
   assert.deepEqual(Object.keys(SET_TYPES).sort(), ['d', 'f', 'w', 'wu']);
+});
+
+// ---------------------------------------------------------------- plates
+
+test('platesFor loads each side heaviest first', () => {
+  assert.deepEqual(platesFor(100, 20, DEFAULT_PLATES.kg), { perSide: [25, 15], loaded: 100, off: 0 });
+  assert.deepEqual(platesFor(62.5, 20, DEFAULT_PLATES.kg).perSide, [20, 1.25]);
+});
+
+test('platesFor works in pounds', () => {
+  assert.deepEqual(platesFor(225, 45, DEFAULT_PLATES.lb).perSide, [45, 45]);
+  assert.deepEqual(platesFor(185, 45, DEFAULT_PLATES.lb).perSide, [45, 25]);
+});
+
+test('platesFor reports the closest load when the plates cannot make it', () => {
+  assert.deepEqual(platesFor(101, 20, DEFAULT_PLATES.kg), { perSide: [25, 15], loaded: 100, off: 1 });
+});
+
+test('platesFor handles the empty bar and below it', () => {
+  assert.deepEqual(platesFor(20, 20, DEFAULT_PLATES.kg), { perSide: [], loaded: 20, off: 0 });
+  assert.deepEqual(platesFor(15, 20, DEFAULT_PLATES.kg), { perSide: [], loaded: 20, off: -5 });
+});
+
+test('platesFor uses only the plates given, in any order, ignoring junk', () => {
+  assert.deepEqual(platesFor(60, 20, [5, 10, 0, -5, 10]).perSide, [10, 10]);
+});
+
+test('platesFor avoids float drift on fractional plates', () => {
+  // 2.75 a side: two 1.25s, and the 0.25 left is under the smallest plate.
+  assert.deepEqual(platesFor(25.5, 20, [1.25, 0.5]), { perSide: [1.25, 1.25], loaded: 25, off: 0.5 });
 });

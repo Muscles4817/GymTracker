@@ -9,13 +9,14 @@ import {
 } from '../store.js';
 import { openExercisePicker } from './picker.js';
 import { openRoutinePreview } from './routines.js';
+import { openPlateCalculator } from './plates.js';
 import {
   node, esc, icon, toast, confirmDialog, promptDialog, emptyState, on, supersetSeam,
 } from '../ui.js';
 import {
   fmtWeight, fmtNum, fmtDuration, fmtClock, parseDuration, relativeDay, fmtDistance,
   toDisplayWeight, toStoredWeight, toDisplayDistance, toStoredDistance,
-  distanceLabel, plural, SET_TYPES, debounce,
+  distanceLabel, plural, SET_TYPES, debounce, BAR_EQUIPMENT,
 } from '../util.js';
 import { startRest, primeAudio } from '../timer.js';
 import { persistStorage } from '../db.js';
@@ -317,7 +318,14 @@ function entryCard(entry, index, ctx) {
         ${setHeader(track, unit, rpeOn)}
         <div class="set-rows"></div>
       </div>
-      <button class="btn btn-ghost btn-sm add-set" data-a="add-set" type="button">${icon('plus')} Add set</button>
+      <div class="entry-foot">
+        <button class="btn btn-ghost btn-sm add-set" data-a="add-set" type="button">${icon('plus')} Add set</button>
+        ${
+          ex && BAR_EQUIPMENT[ex.equipment] && track === 'wr'
+            ? `<button class="btn btn-ghost btn-sm" data-a="plates" type="button">${icon('plates')} Plates</button>`
+            : ''
+        }
+      </div>
     </section>`);
 
   const rowsEl = card.querySelector('.set-rows');
@@ -339,6 +347,14 @@ function entryCard(entry, index, ctx) {
     });
     drawRows();
     ctx.refreshStats();
+  });
+
+  card.querySelector('[data-a="plates"]')?.addEventListener('click', () => {
+    // The set you're about to do, or failing that the last one with a weight.
+    const e = findEntry(ctx.current(), entry.id);
+    const next = e.sets.find((s) => !s.done && s.w != null);
+    const lastFilled = [...e.sets].reverse().find((s) => s.w != null);
+    openPlateCalculator({ kg: (next || lastFilled)?.w ?? null, equipment: ex.equipment });
   });
 
   card.querySelector('[data-a="entry-note"]').addEventListener('click', async () => {

@@ -58,6 +58,7 @@ const ICONS = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
   bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8Z"/>',
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  plates: '<path d="M2 12h20M6 7v10M9 5v14M15 5v14M18 7v10"/>',
   up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
 };
