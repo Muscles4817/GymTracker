@@ -236,6 +236,44 @@ async function main() {
   if (!(await waitFor('.workout-head', 5000, 'active workout header'))) return finish(cleanup);
   ok('Workout started');
 
+  // Wake lock: a spy stands in for the real API, so this checks the app's
+  // logic whether or not headless Chrome would grant a lock. Toggling the
+  // setting makes the app re-evaluate with the spy in place.
+  const wake = await evaluate(`
+    (async () => {
+      if (!('wakeLock' in navigator)) return { unsupported: true };
+      const s = await import(new URL('src/store.js', location.href));
+      const spy = { requests: 0, releases: 0 };
+      window.__wakeSpy = spy;
+      navigator.wakeLock.request = async () => {
+        spy.requests++;
+        const handlers = [];
+        return {
+          addEventListener: (_, fn) => handlers.push(fn),
+          release: async () => { spy.releases++; handlers.forEach((fn) => fn()); },
+        };
+      };
+      await s.saveSettings({ keepAwake: false });
+      await new Promise((r) => setTimeout(r, 50));
+      const before = spy.requests;
+      await s.saveSettings({ keepAwake: true });
+      await new Promise((r) => setTimeout(r, 50));
+      const held = spy.requests - before;
+      await s.saveSettings({ keepAwake: false });
+      await new Promise((r) => setTimeout(r, 50));
+      const released = spy.releases;
+      await s.saveSettings({ keepAwake: true });
+      await new Promise((r) => setTimeout(r, 50));
+      return { held, released, retaken: spy.requests - before };
+    })()`, 'wake lock');
+  if (wake.unsupported) {
+    ok('Wake lock', 'not supported in this browser — skipped');
+  } else if (wake.held !== 1 || wake.released !== 1 || wake.retaken !== 2) {
+    fail('Wake lock', JSON.stringify(wake));
+  } else {
+    ok('Screen wake lock follows the workout and the setting');
+  }
+
   // ------------------------------------------------------------- 3. add exercises
   await evaluate('document.querySelector(\'[data-a="add-exercise"]\').click()');
   await waitFor('.picker-list .picker-row', 5000, 'exercise picker');
@@ -444,6 +482,9 @@ async function main() {
   // ------------------------------------------------------------- 6. finish
   await evaluate('document.querySelector(\'[data-a="finish"]\').click()');
   await sleep(600);
+  const wakeAfter = await evaluate('window.__wakeSpy ? window.__wakeSpy.releases : null');
+  if (wakeAfter != null && wakeAfter < 2) fail('Wake lock release', `still held after finishing (${wakeAfter} releases)`);
+  else if (wakeAfter != null) ok('Wake lock released when the workout ends');
   const hash = await evaluate('location.hash');
   if (!/^#\/history\//.test(hash)) fail('Finish', `expected to land on a workout page, hash is ${hash}`);
   else ok('Workout finished', `routed to ${hash}`);

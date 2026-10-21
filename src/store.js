@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS = {
   textScale: 1,
   trackRpe: false,
   suggestIncrease: true,
+  keepAwake: true,
   increment: null, // kg; null means 2.5 kg, or 5 lb when showing pounds
   sound: true,
   vibrate: true,
