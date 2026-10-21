@@ -4,6 +4,7 @@ import {
   init, getSettings, activeWorkout, subscribe, completedWorkouts, workingSets, workoutDuration,
 } from './store.js';
 import { applyTheme, applyTextScale } from './theme.js';
+import { persistStorage } from './db.js';
 import { node, icon, esc, toast, $ } from './ui.js';
 import { fmtClock, fmtDuration, plural } from './util.js';
 import {
@@ -290,6 +291,8 @@ async function boot() {
   subscribe(refreshActiveDot);
 
   registerServiceWorker();
+  // Nothing to lose yet on a first launch, and Firefox would prompt for it.
+  if (completedWorkouts().length || activeWorkout()) persistStorage();
   setTimeout(maybeNudgeBackup, 1500);
 }
 

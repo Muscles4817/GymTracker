@@ -5,6 +5,7 @@ import {
   completedWorkouts, allExercises, allRoutines, incrementStep,
 } from '../store.js';
 import { workoutsToCsv, downloadBlob } from '../share.js';
+import { persistStorage } from '../db.js';
 import { node, esc, icon, toast, confirmDialog, promptDialog } from '../ui.js';
 import { dayKey, fmtDateFull, plural, toDisplayWeight, toStoredWeight } from '../util.js';
 import { applyTheme, applyTextScale, TEXT_SCALES } from '../theme.js';
@@ -103,6 +104,8 @@ export function settingsView() {
       <section class="card">
         <header class="card-head"><h3>Your data</h3></header>
         <p class="muted small" data-counts></p>
+        <p class="muted small" data-storage></p>
+        <button class="btn btn-ghost btn-block" data-a="persist" type="button" hidden>${icon('check')} Protect my data on this device</button>
         <button class="btn btn-ghost btn-block btn-danger-text" data-a="reset" type="button">${icon('trash')} Erase everything</button>
       </section>
 
@@ -241,6 +244,23 @@ export function settingsView() {
     installState.textContent =
       'To install: in Safari tap Share → Add to Home Screen; in Chrome open the ⋮ menu → Install app.';
   }
+
+  // ---- storage persistence
+  const storageState = el.querySelector('[data-storage]');
+  const persistBtn = el.querySelector('[data-a="persist"]');
+  const showStorage = (persisted, asked = false) => {
+    persistBtn.hidden = persisted !== false;
+    storageState.textContent =
+      persisted === true
+        ? 'Storage is protected: the browser will not clear your log to free up space.'
+        : persisted === false
+          ? asked
+            ? 'The browser declined for now. Installing the app to your home screen usually earns it — until then, keep exporting backups.'
+            : 'Storage is not protected yet, so the browser may clear your log if the device runs low on space or the app goes unused.'
+          : '';
+  };
+  persistStorage({ ask: false }).then((p) => showStorage(p));
+  persistBtn.addEventListener('click', async () => showStorage(await persistStorage(), true));
 
   // ---- counts / reset
   el.querySelector('[data-counts]').textContent =

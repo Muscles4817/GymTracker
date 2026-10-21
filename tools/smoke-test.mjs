@@ -535,6 +535,20 @@ async function main() {
   await waitFor('#set-unit', 5000, 'settings');
   ok('Settings screen renders');
 
+  // A workout has been finished by now, so the app has asked to persist.
+  await sleep(300);
+  const storage = await evaluate(`
+    (async () => ({
+      persisted: await navigator.storage.persisted(),
+      text: document.querySelector('[data-storage]').textContent,
+      button: !document.querySelector('[data-a="persist"]').hidden,
+    }))()`, 'storage state');
+  if (!storage.text || storage.button === storage.persisted) {
+    fail('Storage persistence', JSON.stringify(storage));
+  } else {
+    ok('Settings reports storage persistence', storage.persisted ? 'protected' : 'not granted (headless) — offers the button');
+  }
+
   // unit switch must not change stored data
   await evaluate(`
     (() => {
